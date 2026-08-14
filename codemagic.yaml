@@ -1,3 +1,23 @@
-git add codemagic.yaml README.md
-git commit -m "feat: add Codemagic CI/CD pipeline for Android APK builds"
-git push origin main
+workflows:
+  android-expo-app:
+    name: CareerPilot Android Build
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      node: 20
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      - name: Install Expo CLI
+        script: |
+          npm install -g expo-cli
+      - name: Prebuild Android
+        script: |
+          npx expo prebuild --platform android --clean
+      - name: Build Android APK
+        script: |
+          cd android
+          ./gradlew assembleRelease --no-daemon
+    artifacts:
+      - android/app/build/outputs/apk/release/*.apk
