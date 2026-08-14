@@ -12,6 +12,7 @@ CareerIQ answers this by comparing extracted resume skills against industry-stan
 - **Personalized Roadmaps**: Generates a phased learning plan (Foundation → Advanced) tailored to the user's gaps.
 - **AI Interview Coach**: Generates technical, system design, and behavioral questions based on current skill levels.
 - **GitHub Intelligence**: Analyzes public GitHub repositories to evaluate employer readiness.
+- **Platform Analytics**: Fetches live LeetCode stats via API and evaluates outside-the-classroom presence across competitive programming, hackathons (Unstop), and LinkedIn branding.
 - **Privacy First**: Includes a one-click database wipe feature to ensure user data is not permanently stored.
 
 ## 🛠️ Tech Stack & Architecture
