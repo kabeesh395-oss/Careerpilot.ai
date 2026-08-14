@@ -12,6 +12,7 @@ workflows:
           cd android-wrapper
           npx expo install react-native-webview
           
+          # Create App.js with Streamlit Cloud & Google AI Studio integration
           cat << 'EOF' > App.js
           import React from 'react';
           import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
@@ -22,11 +23,14 @@ workflows:
               <SafeAreaView style={styles.container}>
                 <StatusBar backgroundColor="#0f172a" barStyle="light-content" />
                 <WebView 
-                  source={{ uri: 'https://kabeesh395-oss-careerpilot-ai.hf.space' }} 
+                  source={{ uri: 'https://careerpilot-ai.streamlit.app' }} 
                   style={styles.webview}
                   javaScriptEnabled={true}
                   domStorageEnabled={true}
                   allowFileAccess={true}
+                  allowUniversalAccessFromFileURLs={true}
+                  mixedContentMode="always"
+                  startInLoadingState={true}
                 />
               </SafeAreaView>
             );
