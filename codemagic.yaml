@@ -12,7 +12,7 @@ workflows:
           cd android-wrapper
           npx expo install react-native-webview
           
-          # Create App.js with Streamlit Cloud & Google AI Studio integration
+          # Create App.js configured for client-side GitHub Pages / Direct Studio integration
           cat << 'EOF' > App.js
           import React from 'react';
           import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
@@ -21,9 +21,9 @@ workflows:
           export default function App() {
             return (
               <SafeAreaView style={styles.container}>
-                <StatusBar backgroundColor="#0f172a" barStyle="light-content" />
+                <StatusBar backgroundColor="#020107" barStyle="light-content" />
                 <WebView 
-                  source={{ uri: 'https://careerpilot-ai.streamlit.app' }} 
+                  source={{ uri: 'https://kabeesh395-oss.github.io/Careerpilot.ai/' }} 
                   style={styles.webview}
                   javaScriptEnabled={true}
                   domStorageEnabled={true}
@@ -31,14 +31,16 @@ workflows:
                   allowUniversalAccessFromFileURLs={true}
                   mixedContentMode="always"
                   startInLoadingState={true}
+                  bounces={false}
+                  overScrollMode="never"
                 />
               </SafeAreaView>
             );
           }
 
           const styles = StyleSheet.create({
-            container: { flex: 1, backgroundColor: '#0f172a' },
-            webview: { flex: 1, backgroundColor: '#0f172a' },
+            container: { flex: 1, backgroundColor: '#020107' },
+            webview: { flex: 1, backgroundColor: '#020107' },
           });
           EOF
 

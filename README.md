@@ -1,55 +1,73 @@
-# 🚀 CareerIQ — AI Career Analysis Platform
+# 🧭 CareerPilot AI — Neural Career Intelligence Platform
 
-CareerIQ is an AI-powered application designed to help students and professionals analyze their resumes, identify skill gaps, and generate personalized career roadmaps. Instead of generic advice, CareerIQ uses LLMs to provide actionable, specific feedback based on actual resume text and target job roles.
+CareerPilot AI is an enterprise-grade, serverless AI career guidance platform designed to help students and software engineers bridge the gap between their current skill stack and their target job roles. Powered directly by Google Gemini 1.5 Flash via native REST APIs, the platform operates completely client-side without requiring Python servers or `streamlit run`.
 
-## 🎯 Core Problem Solved
-Job seekers often ask: *"Am I ready for this job, what skills am I missing, and what should I do next?"* 
-CareerIQ answers this by comparing extracted resume skills against industry-standard job requirements and generating a dynamic learning roadmap.
+![Google Gemini](https://img.shields.io/badge/Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![Android APK](https://img.shields.io/badge/Android_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Codemagic](https://img.shields.io/badge/Codemagic-F4511E?style=for-the-badge&logo=codemagic&logoColor=white)
 
-## ✨ Features
-- **AI Resume Analysis**: Upload a PDF resume to get a 0-100 Readiness Score and semantic match analysis.
-- **Skill Gap Engine**: Identifies strong skills and missing skills for specific roles (e.g., ML Engineer).
-- **Personalized Roadmaps**: Generates a phased learning plan (Foundation → Advanced) tailored to the user's gaps.
-- **AI Interview Coach**: Generates technical, system design, and behavioral questions based on current skill levels.
-- **GitHub Intelligence**: Analyzes public GitHub repositories to evaluate employer readiness.
-- **Platform Analytics**: Fetches live LeetCode stats via API and evaluates outside-the-classroom presence across competitive programming, hackathons (Unstop), and LinkedIn branding.
-- **Privacy First**: Includes a one-click database wipe feature to ensure user data is not permanently stored.
+---
 
-## 🛠️ Tech Stack & Architecture
-- **Frontend**: Streamlit (Python), Custom CSS
-- **Backend**: Python
-- **AI/ML**: Google Gemini 1.5 Flash (LLM), Sentence-Transformers (Embeddings)
-- **Database**: SQLite (Local persistent storage)
-- **Deployment**: Hugging Face Spaces
+## 🚀 Key Features
 
-### AI Architecture (Division of Labor)
-The application separates deterministic logic from generative AI:
-1. **Python (pypdf)**: Extracts raw text from PDF files.
-2. **Google Gemini API**: Processes raw text, extracts skills, calculates readiness, and generates JSON roadmaps.
-3. **Strict JSON Parsing**: The system uses regex cleaning to ensure the LLM output is strictly parsable JSON, preventing frontend crashes.
+1. **🧬 Skill DNA & Gap Heatmap**: Real-time evaluation of matched capabilities vs. critical missing skills for target roles.
+2. **📡 Recruiter Radar**: Market discovery estimation (High / Med / Low) with actionable optimization directives.
+3. **⚡ Daily AI Missions**: Gamified daily checklist of high-leverage technical and algorithmic tasks.
+4. **✨ AI Resume Bullet Rewriter**: Transforms weak bullets into high-impact, metrics-driven, ATS-compliant bullet points.
+5. **🎤 Target Interview Simulator**: Dynamic generation of company- and role-specific technical and behavioral questions.
+6. **📱 Standalone Mobile App**: Full mobile support with a dedicated React Native WebView wrapper and Codemagic CI/CD build pipeline.
 
-## ⚙️ Local Setup
-1. Clone the repository.
-2. Install dependencies:
-   ```bash
-   pip install streamlit google-generativeai pypdf requests
-   ```
-3. Get a Google AI Studio API key and set it as an environment variable:
-   ```bash
-   export GOOGLE_API_KEY="your_api_key_here"
-   ```
-4. Run the app:
-   ```bash
-   streamlit run app.py
-   ```
+---
 
-## 📱 Mobile App (Android APK via Codemagic)
-The repository includes a pre-configured `codemagic.yaml` for building standalone Android APKs via Codemagic CI/CD:
-1. Connect this repository to **Codemagic**.
-2. Trigger the `android-expo-app` workflow.
-3. Download the generated `app-release.apk` artifact for direct Android installation.
+## 🛠️ Serverless Architecture
 
-## 🔮 Future Scope (V2)
-- Integrate `pgvector` for storing job descriptions as vector embeddings.
-- Add LinkedIn API integration for auto-filling profiles.
-- Implement user authentication via Firebase Auth.
+The application runs 100% client-side with zero Python server requirements:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 CareerPilot AI Client UI                    │
+│        (GitHub Pages Web App / Android Native APK)          │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+            ┌──────────────────┴──────────────────┐
+            ▼                                     ▼
+┌──────────────────────────────┐    ┌──────────────────────────────┐
+│     Client-Side Engine       │    │     Google AI Studio         │
+│  - Zero Python Server Needed │    │  - Gemini 1.5 Flash REST API │
+│  - No `streamlit run`        │    │  - Structured JSON Schemas   │
+│  - Local Data Storage        │    │  - Direct Client Ingestion   │
+│  - PWA / Mobile Optimized    │    │  - Dynamic Neural Analysis   │
+└──────────────────────────────┘    └──────────────────────────────┘
+```
+
+---
+
+## ⚙️ Quick Start (No Server / No Terminal Required)
+
+### 1. Run Locally
+Simply open `index.html` in any web browser (Chrome, Edge, Safari, Firefox). No installation or terminal commands needed.
+
+### 2. Deploy to GitHub Pages (Free)
+1. Push `index.html` to your GitHub repository.
+2. Go to repository **Settings** ➡️ **Pages**.
+3. Under **Build and deployment**, select `main` branch and click **Save**.
+4. Access your live web app URL (e.g., `https://yourusername.github.io/Careerpilot.ai/`).
+
+---
+
+## 📱 Compiling Standalone Android APK (via Codemagic CI/CD)
+
+The included `codemagic.yaml` compiles the application into an Android `.apk` installer without local Android SDK setup:
+
+1. Connect your repository to [Codemagic](https://codemagic.io/).
+2. Select the `android-expo-app` workflow.
+3. Click **Start new build**.
+4. Download the compiled `app-release.apk` directly to your Android device from the **Artifacts** tab.
+
+---
+
+## 📄 License
+This project is open-source and available under the [MIT License](LICENSE).
