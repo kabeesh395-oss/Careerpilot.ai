@@ -1,23 +1,53 @@
 workflows:
   android-expo-app:
-    name: CareerPilot Android Build
+    name: CareerPilot Android APK
     instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
       node: 20
     scripts:
-      - name: Install npm dependencies
+      - name: Setup Expo and WebView Dependencies
         script: |
-          npm install
-      - name: Install Expo CLI
+          npx create-expo-app@latest android-wrapper --template blank
+          cd android-wrapper
+          npx expo install react-native-webview
+          
+          cat << 'EOF' > App.js
+          import React from 'react';
+          import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
+          import { WebView } from 'react-native-webview';
+
+          export default function App() {
+            return (
+              <SafeAreaView style={styles.container}>
+                <StatusBar backgroundColor="#0f172a" barStyle="light-content" />
+                <WebView 
+                  source={{ uri: 'https://kabeesh395-oss-careerpilot-ai.hf.space' }} 
+                  style={styles.webview}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  allowFileAccess={true}
+                />
+              </SafeAreaView>
+            );
+          }
+
+          const styles = StyleSheet.create({
+            container: { flex: 1, backgroundColor: '#0f172a' },
+            webview: { flex: 1, backgroundColor: '#0f172a' },
+          });
+          EOF
+
+      - name: Generate Android Native Project
         script: |
-          npm install -g expo-cli
-      - name: Prebuild Android
-        script: |
+          cd android-wrapper
           npx expo prebuild --platform android --clean
-      - name: Build Android APK
+
+      - name: Compile Android APK
         script: |
-          cd android
+          cd android-wrapper/android
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
+
     artifacts:
-      - android/app/build/outputs/apk/release/*.apk
+      - android-wrapper/android/app/build/outputs/apk/release/*.apk
