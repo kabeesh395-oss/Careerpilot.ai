@@ -1,54 +1,23 @@
 workflows:
-  android-apk-build:
-    name: CareerPilot Android APK
+  android-expo-app:
+    name: CareerPilot Android Build
     instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
       node: 20
     scripts:
-      - name: Setup Expo and WebView Dependencies
+      - name: Install npm dependencies
         script: |
-          npx create-expo-app@latest android-wrapper --template blank
-          cd android-wrapper
-          npx expo install react-native-webview
-          
-          # Create the App.js pointing to your live app URL
-          cat << 'EOF' > App.js
-          import React from 'react';
-          import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
-          import { WebView } from 'react-native-webview';
-
-          export default function App() {
-            return (
-              <SafeAreaView style={styles.container}>
-                <StatusBar backgroundColor="#0f172a" barStyle="light-content" />
-                <WebView 
-                  source={{ uri: 'https://kabeesh395-oss-careerpilot-ai.hf.space' }} 
-                  style={styles.webview}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  allowFileAccess={true}
-                />
-              </SafeAreaView>
-            );
-          }
-
-          const styles = StyleSheet.create({
-            container: { flex: 1, backgroundColor: '#0f172a' },
-            webview: { flex: 1, backgroundColor: '#0f172a' },
-          });
-          EOF
-
-      - name: Generate Android Native Project
+          npm install
+      - name: Install Expo CLI
         script: |
-          cd android-wrapper
+          npm install -g expo-cli
+      - name: Prebuild Android
+        script: |
           npx expo prebuild --platform android --clean
-
-      - name: Compile Android APK
+      - name: Build Android APK
         script: |
-          cd android-wrapper/android
-          chmod +x gradlew
+          cd android
           ./gradlew assembleRelease --no-daemon
-
     artifacts:
-      - android-wrapper/android/app/build/outputs/apk/release/*.apk
+      - android/app/build/outputs/apk/release/*.apk

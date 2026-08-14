@@ -43,6 +43,12 @@ The application separates deterministic logic from generative AI:
    streamlit run app.py
    ```
 
+## 📱 Mobile App (Android APK via Codemagic)
+The repository includes a pre-configured `codemagic.yaml` for building standalone Android APKs via Codemagic CI/CD:
+1. Connect this repository to **Codemagic**.
+2. Trigger the `android-expo-app` workflow.
+3. Download the generated `app-release.apk` artifact for direct Android installation.
+
 ## 🔮 Future Scope (V2)
 - Integrate `pgvector` for storing job descriptions as vector embeddings.
 - Add LinkedIn API integration for auto-filling profiles.
