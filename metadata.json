@@ -1,6 +1,6 @@
 {
-  "name": "Android App Studio & Device Playground",
-  "description": "An interactive Web-based Android App Studio for designing, generating with Gemini AI, and testing Jetpack Compose Android apps with live device emulator preview.",
+  "name": "CareerPilot AI",
+  "description": "An AI-powered career guidance application for students and engineers that analyzes resumes, GitHub profiles, and skill gaps to generate personalized learning roadmaps and mock interviews.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -40,10 +40,10 @@ export const FoodDeliveryApp: React.FC = () => {
     });
   };
 
-  const cartItemCount = Object.values(cart).reduce((a, b) => a + b, 0);
-  const subtotal = Object.entries(cart).reduce((sum, [id, qty]) => {
+  const cartItemCount = (Object.values(cart) as number[]).reduce((a: number, b: number) => a + b, 0);
+  const subtotal = Object.entries(cart).reduce((sum: number, [id, qty]) => {
     const item = MENU.find(m => m.id === Number(id));
-    return sum + (item ? item.price * qty : 0);
+    return sum + (item ? item.price * Number(qty) : 0);
   }, 0);
 
   const startOrder = () => {

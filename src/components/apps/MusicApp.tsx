@@ -99,7 +99,7 @@ export const MusicApp: React.FC = () => {
                 key={i}
                 className="w-1.5 bg-gradient-to-t from-purple-500 to-indigo-400 rounded-full transition-all duration-300"
                 style={{
-                  height: isPlaying ? `${Math.max(15, (h * Math.random()).toFixed(0))}%` : '20%'
+                  height: isPlaying ? `${Math.max(15, Math.round(h * Math.random()))}%` : '20%'
                 }}
               ></div>
             ))}

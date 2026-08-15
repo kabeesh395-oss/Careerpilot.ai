@@ -3,12 +3,12 @@ import { AndroidApp } from '../types';
 export const SAMPLE_APPS: AndroidApp[] = [
   {
     id: 'career_guidance',
-    name: 'CareerIQ Engine',
+    name: 'CareerPilot AI',
     icon: 'Compass',
     category: 'Career & AI',
-    color: '#8B5CF6', // Violet
-    description: 'Core AI Career Advisor engine supporting career_gap_analysis, interview_preparation, recommend_careers, and github_analysis via Gemini 2.5 Flash.',
-    kotlinCode: `package com.example.careeriq
+    color: '#6366F1', // Indigo
+    description: 'Autonomous AI Career Mentor for students & developers featuring Resume ATS analysis, 7-stage learning roadmaps, mock interview coach, and skill gap heatmaps.',
+    kotlinCode: `package com.careerpilot.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

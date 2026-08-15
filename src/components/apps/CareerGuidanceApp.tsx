@@ -1,1628 +1,2071 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, animate } from 'motion/react';
 import { 
-  Briefcase, Compass, Award, CheckCircle2, Circle, Clock, 
+  Compass, Award, CheckCircle2, Circle, Clock, 
   Sparkles, Layers, Code, RefreshCw, HelpCircle, 
   Github, Send, ChevronDown, ChevronUp, AlertCircle, ArrowRight,
-  TrendingUp, Terminal, FileCode, Play, Cpu, FileText, Database, History, ShieldCheck, Trash2
+  TrendingUp, Terminal, FileCode, Play, Cpu, FileText, Database, 
+  History, ShieldCheck, Trash2, User, BookOpen, Briefcase, 
+  Target, CheckSquare, Star, Zap, Flame, Trophy, ExternalLink,
+  MessageSquare, Copy, Check, Upload, BarChart3, Sun, Moon,
+  ListTodo, Plus, ChevronRight, Search, Share2, Lightbulb
 } from 'lucide-react';
-import { 
-  CareerGapAnalysisInput, CareerGapAnalysisResult,
-  InterviewPrepInput, InterviewPrepResult,
-  RecommendCareersInput, RecommendCareersResult,
-  GithubAnalysisInput, GithubAnalysisResult,
-  ResumeAnalysisInput, ResumeAnalysisResult
-} from '../../types';
 import { GoogleGenAI } from '@google/genai';
 
-// --- PERSISTENT DATABASE RECORD TYPE ---
-export interface AnalysisHistoryRecord {
-  id: number;
-  date: string;
-  role: string;
+// --- MOTION ANIMATED SCORE COUNTER & PROGRESS COMPONENTS ---
+export const AnimatedScoreCounter: React.FC<{ value: number; duration?: number; delay?: number }> = ({ 
+  value, 
+  duration = 1.2,
+  delay = 0 
+}) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const controls = animate(0, value, {
+      duration,
+      delay,
+      ease: [0.16, 1, 0.3, 1], // easeOutExpo
+      onUpdate: (latest) => {
+        setDisplayValue(Math.round(latest));
+      }
+    });
+    return () => controls.stop();
+  }, [value, duration, delay]);
+
+  return <>{displayValue}</>;
+};
+
+export const AnimatedReadinessRing: React.FC<{
   score: number;
-  missing: string;
-}
-
-const DEFAULT_HISTORY: AnalysisHistoryRecord[] = [
-  {
-    id: 1,
-    date: '2026-08-13 09:45',
-    role: 'ML Engineer',
-    score: 45,
-    missing: 'Machine Learning, Deep Learning, Docker, PyTorch'
-  },
-  {
-    id: 2,
-    date: '2026-08-12 14:20',
-    role: 'Data Scientist',
-    score: 68,
-    missing: 'Docker, PyTorch, MLOps, Vector Databases'
-  }
-];
-
-// --- INITIAL DEFAULT STATES FOR ALL CORE TASKS ---
-
-const DEFAULT_RESUME_INPUT: ResumeAnalysisInput = {
-  resume_text: "John Doe. Experience: 2 years as Python Developer. Skills: Python, SQL, Git, Flask. Built a REST API for a blog.",
-  target_role: "ML Engineer"
-};
-
-const DEFAULT_RESUME_RESULT: ResumeAnalysisResult = {
-  extracted_skills: ["Python", "SQL", "Git", "Flask"],
-  strong_skills: ["Python", "SQL", "Git"],
-  missing_skills: ["Machine Learning", "Deep Learning", "Docker", "PyTorch"],
-  readiness_score: 45,
-  readiness_explanation: "Your readiness score of 45 indicates a strong foundation in Python and backend development, but you currently lack the core machine learning frameworks (PyTorch) and deployment tools (Docker) required for an ML Engineering role.",
-  next_best_action: "Begin by learning PyTorch fundamentals to understand how to build basic neural networks.",
-  roadmap: [
-    {
-      phase: "Phase 1: Machine Learning Fundamentals",
-      duration: "3-4 Weeks",
-      focus_skills: ["Machine Learning", "PyTorch"],
-      action_items: ["Learn PyTorch tensors and autograd", "Build a simple linear regression model from scratch"]
-    },
-    {
-      phase: "Phase 2: Model Containerization",
-      duration: "1-2 Weeks",
-      focus_skills: ["Docker"],
-      action_items: ["Learn basic Dockerfile syntax", "Dockerize your existing Flask REST API"]
-    },
-    {
-      phase: "Phase 3: Advanced ML & Deployment",
-      duration: "4-5 Weeks",
-      focus_skills: ["Deep Learning"],
-      action_items: ["Build an image classifier using CNNs in PyTorch", "Serve the model via a Flask API inside a Docker container"]
-    }
-  ],
-  recommended_projects: [
-    "End-to-end ML API: Build a PyTorch model to predict housing prices, wrap it in your existing Flask API, and deploy it using Docker.",
-    "Image Classification Service: Train a CNN in PyTorch and serve it via a REST API, demonstrating ML and backend skills."
-  ]
-};
-
-const DEFAULT_GAP_INPUT: CareerGapAnalysisInput = {
-  task: 'career_gap_analysis',
-  target_role: 'ML Engineer',
-  readiness_score: 68,
-  semantic_match: 72,
-  strong_skills: ['Python', 'SQL', 'Git', 'Data Structures'],
-  missing_skills: ['Docker', 'PyTorch', 'MLOps', 'Vector Databases']
-};
-
-const DEFAULT_GAP_RESULT: CareerGapAnalysisResult = {
-  readiness_explanation: 'With a readiness score of 68%, you possess strong software engineering fundamentals in Python and SQL. However, bridging the gap to ML Engineer requires acquiring practical experience in PyTorch model development, Docker containerization, and MLOps deployment pipelines.',
-  next_best_action: 'Focus immediately on building an end-to-end PyTorch pipeline containerized with Docker.',
-  roadmap: [
-    {
-      phase: 'Phase 1: Deep Learning Foundations & PyTorch',
-      duration: '3 Weeks',
-      focus_skills: ['PyTorch', 'Tensor Manipulations', 'Loss Functions'],
-      action_items: [
-        'Complete PyTorch 60-minute blitz tutorial',
-        'Train a CNN on FashionMNIST and evaluate accuracy metrics',
-        'Implement custom Dataset and DataLoader classes'
-      ]
-    },
-    {
-      phase: 'Phase 2: MLOps, Containerization & Vector Search',
-      duration: '4 Weeks',
-      focus_skills: ['Docker', 'MLOps', 'Vector Databases (ChromaDB)'],
-      action_items: [
-        'Containerize PyTorch model inference script in Docker',
-        'Deploy FastAPI prediction endpoint backed by ChromaDB',
-        'Configure MLflow model tracking and logging'
-      ]
-    }
-  ],
-  recommended_projects: [
-    'Containerized PyTorch Resume Semantic Matcher using Vector Embeddings',
-    'MLOps Automated Model Monitoring Pipeline with FastAPI & Docker'
-  ]
-};
-
-const DEFAULT_INTERVIEW_INPUT: InterviewPrepInput = {
-  task: 'interview_preparation',
-  target_role: 'ML Engineer',
-  user_skills: ['Python', 'SQL', 'FastAPI']
-};
-
-const DEFAULT_INTERVIEW_RESULT: InterviewPrepResult = {
-  technical_questions: [
-    'How do Python GIL limitations impact multi-threaded matrix operations vs NumPy C-extensions?',
-    'Write an optimized SQL query using window functions to calculate 7-day rolling model prediction latency.'
-  ],
-  system_design_questions: [
-    'Design a real-time ML recommendation system processing 10,000 QPS with sub-50ms latency SLAs.'
-  ],
-  behavioral_questions: [
-    'Describe a situation where a deployed model suffered from concept drift in production and how you detected it.',
-    'How do you handle disagreement with domain experts regarding model performance metrics?'
-  ]
-};
-
-const DEFAULT_RECOMMEND_INPUT: RecommendCareersInput = {
-  task: 'recommend_careers',
-  user_skills: ['Python', 'SQL', 'Pandas', 'Communication']
-};
-
-const DEFAULT_RECOMMEND_RESULT: RecommendCareersResult = {
-  recommended_roles: [
-    {
-      role: 'Data Analyst',
-      match_reason: 'Your strong SQL and Pandas mastery combined with clear communication skills makes you an immediate candidate for data insights & analytics engineering.',
-      skills_to_add: ['Tableau', 'PowerBI', 'dbt']
-    },
-    {
-      role: 'Data Scientist',
-      match_reason: 'Solid foundation in Python data analysis and SQL querying provides a direct launchpad into predictive modeling.',
-      skills_to_add: ['Scikit-Learn', 'Statistical Inference', 'A/B Testing']
-    },
-    {
-      role: 'Analytics Engineer',
-      match_reason: 'Bridges raw data transformations with business reporting using your core Python/SQL toolkit.',
-      skills_to_add: ['Data Warehousing (Snowflake)', 'Git CI/CD']
-    }
-  ]
-};
-
-const DEFAULT_GITHUB_INPUT: GithubAnalysisInput = {
-  task: 'github_analysis',
-  repo_name: 'ML-Project',
-  languages: ['Python', 'HTML'],
-  has_readme: false,
-  has_tests: false,
-  commit_count: 5
-};
-
-const DEFAULT_GITHUB_RESULT: GithubAnalysisResult = {
-  profile_strength: 'The repository exhibits initial promise with Python code, but lacks structural documentation, test coverage, and active commit history.',
-  improvement_suggestions: [
-    'Add a comprehensive README.md detailing project architecture, installation steps, and live demo links.',
-    'Implement automated unit testing using pytest and configure GitHub Actions for CI verification.',
-    'Increase commit frequency with granular, atomic commit messages following conventional commits standard.'
-  ],
-  employer_readiness: 'Low',
-  employer_readiness_reason: 'Without a README or automated unit tests, technical recruiters and engineering managers cannot quickly evaluate your code quality or verification standards.'
-};
-
-export const CareerGuidanceApp: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'resume' | 'gap' | 'interview' | 'history' | 'recommend' | 'github' | 'code'>('resume');
-  
-  // Task States
-  const [resumeInput, setResumeInput] = useState<ResumeAnalysisInput>(DEFAULT_RESUME_INPUT);
-  const [resumeResult, setResumeResult] = useState<ResumeAnalysisResult>(DEFAULT_RESUME_RESULT);
-
-  const [gapInput, setGapInput] = useState<CareerGapAnalysisInput>(DEFAULT_GAP_INPUT);
-  const [gapResult, setGapResult] = useState<CareerGapAnalysisResult>(DEFAULT_GAP_RESULT);
-
-  const [interviewInput, setInterviewInput] = useState<InterviewPrepInput>(DEFAULT_INTERVIEW_INPUT);
-  const [interviewResult, setInterviewResult] = useState<InterviewPrepResult>(DEFAULT_INTERVIEW_RESULT);
-
-  const [recommendInput, setRecommendInput] = useState<RecommendCareersInput>(DEFAULT_RECOMMEND_INPUT);
-  const [recommendResult, setRecommendResult] = useState<RecommendCareersResult>(DEFAULT_RECOMMEND_RESULT);
-
-  const [githubInput, setGithubInput] = useState<GithubAnalysisInput>(DEFAULT_GITHUB_INPUT);
-  const [githubResult, setGithubResult] = useState<GithubAnalysisResult>(DEFAULT_GITHUB_RESULT);
-
-  // SQLite Persistent Database History State
-  const [historyRecords, setHistoryRecords] = useState<AnalysisHistoryRecord[]>(DEFAULT_HISTORY);
-
-  // General UI States
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [rawTextLog, setRawTextLog] = useState<string>('');
-  const [cleanedJsonLog, setCleanedJsonLog] = useState<string>('');
-
-  // Multi-Task System Prompt matching Streamlit app.py
-  const dualTaskSystemPrompt = `You are the core AI engine for "CareerIQ". You process raw resume text and portfolio metrics.
-You will receive a JSON payload with a "task" field. Respond with EXACT JSON format.
-
-### STRICT RULES:
-1. ONLY output valid JSON. NO markdown blocks (\`\`\`json). NO conversational text.
-2. If you cannot read the resume or process request, output: {"error": "Unable to process request"}
-
-### TASK 1: "career_gap_analysis" / "resume_analysis"
-Input: {"task": "career_gap_analysis", "resume_text": "...", "target_role": "ML Engineer"}
-Output Schema:
-{
-  "extracted_skills": ["Python", "SQL"],
-  "strong_skills": ["Python", "SQL"],
-  "missing_skills": ["Docker", "PyTorch"],
-  "readiness_score": 45,
-  "readiness_explanation": "2 sentences explaining why they got this score.",
-  "next_best_action": "One actionable sentence.",
-  "roadmap": [
-    {"phase": "Phase 1: Name", "duration": "X Weeks", "focus_skills": ["Skill1"], "action_items": ["Action 1", "Action 2"]},
-    {"phase": "Phase 2: Name", "duration": "X Weeks", "focus_skills": ["Skill2"], "action_items": ["Action 1", "Action 2"]}
-  ],
-  "recommended_projects": ["Project idea 1", "Project idea 2"]
-}
-
-### TASK 2: "interview_preparation"
-Input: {"task": "interview_preparation", "target_role": "ML Engineer", "user_skills": ["Python", "SQL"]}
-Output Schema:
-{
-  "technical_questions": ["Question 1 about user's strong skill", "Question 2"],
-  "system_design_questions": ["Role-specific system design scenario"],
-  "behavioral_questions": ["Question about overcoming challenges", "Question about teamwork"]
-}
-
-### TASK 3: "github_analysis"
-Input: {"task": "github_analysis", "username": "user", "repositories": [{"name": "project", "language": "Python", "stars": 0, "description": "a bot"}]}
-Output Schema:
-{
-  "profile_strength": "1-2 sentences assessing the portfolio.",
-  "improvement_suggestions": ["Actionable tip 1", "Actionable tip 2"],
-  "employer_readiness": "Low / Medium / High",
-  "employer_readiness_reason": "Brief explanation of how an employer views this."
-}
-
-### TASK 4: "platform_analytics"
-Input: {"task": "platform_analytics", "leetcode_stats": {"easy": 50, "medium": 120, "hard": 15, "ranking": 15000}, "linkedin_summary": "SDE Intern at Google...", "hackathon_summary": "Won SIH 2023..."}
-Output Schema:
-{
-  "overall_profile_strength": "1-2 sentences assessing their outside-the-classroom engineering profile.",
-  "platform_breakdown": {
-    "leetcode_assessment": "Brief feedback on their problem-solving consistency and difficulty spread.",
-    "hackathon_assessment": "Feedback on their teamwork, innovation, and practical build speed.",
-    "linkedin_assessment": "Feedback on their professional branding and networking visibility."
-  },
-  "growth_suggestions": ["Specific tip to improve LeetCode ranking", "Specific tip to leverage hackathons for jobs", "Specific tip to optimize LinkedIn"],
-  "employer_readiness": "High / Medium / Low"
-}`;
-
-  // Safe AI Executer following exact regex cleanup logic
-  const executeCareerIQAi = async (inputPayload: object, taskType: string) => {
-    setIsLoading(true);
-    setStatusMessage(`Building prompt payload for ${taskType}...`);
-    
-    const promptString = JSON.stringify(inputPayload);
-
-    try {
-      const apiKey = process.env.GEMINI_API_KEY || '';
-      let rawTextResponse = '';
-
-      if (apiKey) {
-        setStatusMessage('Calling Gemini 2.5 Flash with multi-task system instruction...');
-        const ai = new GoogleGenAI({ apiKey });
-        
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Process this task and return strict JSON: ${promptString}`,
-          config: {
-            systemInstruction: dualTaskSystemPrompt,
-            responseMimeType: 'application/json'
-          }
-        });
-        rawTextResponse = response.text || '';
-      } else {
-        // Simulated LLM output showcasing the regex cleaning requirement
-        setStatusMessage('Simulating Gemini 2.5 Flash response with markdown wrapper...');
-        await new Promise(r => setTimeout(r, 600));
-
-        if (taskType === 'resume_analysis') {
-          rawTextResponse = `\`\`\`json
-${JSON.stringify({
-  extracted_skills: ["Python", "SQL", "Git", "Flask"],
-  strong_skills: ["Python", "SQL", "Git"],
-  missing_skills: ["Machine Learning", "Deep Learning", "Docker", "PyTorch"],
-  readiness_score: 45,
-  readiness_explanation: `Your readiness score of 45 indicates a strong foundation in Python and backend development, but you currently lack the core machine learning frameworks (PyTorch) and deployment tools (Docker) required for a ${resumeInput.target_role} role.`,
-  next_best_action: "Begin by learning PyTorch fundamentals to understand how to build basic neural networks.",
-  roadmap: [
-    {
-      phase: "Phase 1: Machine Learning Fundamentals",
-      duration: "3-4 Weeks",
-      focus_skills: ["Machine Learning", "PyTorch"],
-      action_items: ["Learn PyTorch tensors and autograd", "Build a simple linear regression model from scratch"]
-    },
-    {
-      phase: "Phase 2: Model Containerization",
-      duration: "1-2 Weeks",
-      focus_skills: ["Docker"],
-      action_items: ["Learn basic Dockerfile syntax", "Dockerize your existing Flask REST API"]
-    }
-  ],
-  recommended_projects: [
-    "End-to-end ML API: Build a PyTorch model to predict housing prices, wrap it in your existing Flask API, and deploy it using Docker."
-  ]
-}, null, 2)}
-\`\`\``;
-        } else if (taskType === 'career_gap_analysis') {
-          rawTextResponse = `\`\`\`json
-${JSON.stringify({
-  readiness_explanation: `With a ${gapInput.readiness_score}% readiness for ${gapInput.target_role}, your background in ${gapInput.strong_skills.join(', ')} is solid. Mastering ${gapInput.missing_skills.join(', ')} will elevate your profile to top candidate status.`,
-  next_best_action: `Build a production-ready project incorporating ${gapInput.missing_skills[0] || 'MLOps'} and ${gapInput.missing_skills[1] || 'Docker'}.`,
-  roadmap: [
-    {
-      phase: `Phase 1: ${gapInput.missing_skills[0] || 'Core Skill'} Masterclass`,
-      duration: '3 Weeks',
-      focus_skills: [gapInput.missing_skills[0] || 'Core Skill'],
-      action_items: [`Study official documentation for ${gapInput.missing_skills[0] || 'Core Skill'}`, 'Implement baseline application pipeline']
-    },
-    {
-      phase: `Phase 2: ${gapInput.missing_skills[1] || 'Deployment'} & Integration`,
-      duration: '4 Weeks',
-      focus_skills: [gapInput.missing_skills[1] || 'Deployment'],
-      action_items: [`Deploy application with containerization`, 'Configure continuous integration workflows']
-    }
-  ],
-  recommended_projects: [
-    `End-to-End ${gapInput.target_role} Pipeline using ${gapInput.strong_skills[0] || 'Python'} & ${gapInput.missing_skills[0] || 'Docker'}`
-  ]
-}, null, 2)}
-\`\`\``;
-        } else if (taskType === 'interview_preparation') {
-          rawTextResponse = `\`\`\`json
-${JSON.stringify({
-  technical_questions: [
-    `How does ${interviewInput.user_skills[0] || 'Python'} handle memory management under heavy concurrency?`,
-    `Describe how you optimize query execution plans in database engines when targeting ${interviewInput.target_role} workloads.`
-  ],
-  system_design_questions: [
-    `Design a fault-tolerant microservice architecture for a ${interviewInput.target_role} processing 5,000 QPS.`
-  ],
-  behavioral_questions: [
-    `Tell me about a time you had to debug an intermittent production outage under strict timeline constraints.`
-  ]
-}, null, 2)}
-\`\`\``;
-        } else if (taskType === 'recommend_careers') {
-          rawTextResponse = `\`\`\`json
-${JSON.stringify({
-  recommended_roles: [
-    {
-      role: 'AI Solutions Architect',
-      match_reason: `Your expertise in ${recommendInput.user_skills.slice(0, 2).join(' & ')} aligns directly with high-value solution engineering.`,
-      skills_to_add: ['Gemini API', 'Vector Search', 'System Design']
-    },
-    {
-      role: 'Backend Systems Engineer',
-      match_reason: 'Strong fundamental coding abilities position you well for server-side architecture.',
-      skills_to_add: ['Distributed Caching', 'Kubernetes']
-    }
-  ]
-}, null, 2)}
-\`\`\``;
-        } else if (taskType === 'github_analysis') {
-          rawTextResponse = `\`\`\`json
-${JSON.stringify({
-  profile_strength: `Repository '${githubInput.repo_name}' shows good programming language usage in ${githubInput.languages.join(', ')} with ${githubInput.commit_count} commits.`,
-  improvement_suggestions: [
-    githubInput.has_readme ? 'Expand README with architectural diagrams' : 'Add a detailed README.md file with setup instructions',
-    githubInput.has_tests ? 'Increase unit test coverage above 80%' : 'Implement unit test suites using pytest or JUnit',
-    'Configure GitHub Actions for automated linting and build checks'
-  ],
-  employer_readiness: githubInput.has_readme && githubInput.has_tests ? 'High' : 'Low',
-  employer_readiness_reason: githubInput.has_readme && githubInput.has_tests 
-    ? 'Repository follows industry standards for documentation and testing.' 
-    : 'Lacks adequate documentation or automated tests required for technical review.'
-}, null, 2)}
-\`\`\``;
-        } else {
-          rawTextResponse = JSON.stringify(gapResult, null, 2);
-        }
-      }
-
-      setRawTextLog(rawTextResponse);
-
-      // --- CRITICAL REGEX CLEANING SPECIFIED BY USER ---
-      setStatusMessage('Applying regex cleanup: re.sub(r"^```json\\s*", "", raw_text)...');
-      let cleaned = rawTextResponse;
-      cleaned = cleaned.replace(/^```json\s*/i, '').trim();
-      cleaned = cleaned.replace(/```\s*$/i, '').trim();
-
-      setCleanedJsonLog(cleaned);
-
-      const parsed = JSON.parse(cleaned);
-
-      if (parsed.error) {
-        alert(`AI Error: ${parsed.error}`);
-      } else {
-        if (taskType === 'resume_analysis') setResumeResult(parsed);
-        if (taskType === 'career_gap_analysis') setGapResult(parsed);
-        if (taskType === 'interview_preparation') setInterviewResult(parsed);
-        if (taskType === 'recommend_careers') setRecommendResult(parsed);
-        if (taskType === 'github_analysis') setGithubResult(parsed);
-
-        // Auto-save to Persistent SQLite Database History
-        if (taskType === 'resume_analysis' || taskType === 'career_gap_analysis') {
-          const targetRoleName = (inputPayload as any).target_role || resumeInput.target_role;
-          const scoreVal = parsed.readiness_score || 50;
-          const missingSkillsStr = (parsed.missing_skills || []).join(', ') || 'Docker, PyTorch';
-
-          const newHistoryItem: AnalysisHistoryRecord = {
-            id: Date.now(),
-            date: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            role: targetRoleName,
-            score: scoreVal,
-            missing: missingSkillsStr
-          };
-          setHistoryRecords(prev => [newHistoryItem, ...prev]);
-        }
-      }
-    } catch (err: any) {
-      console.error('JSON parsing or execution error:', err);
-      setCleanedJsonLog(`Parsing Error: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-      setStatusMessage('');
-    }
-  };
-
-  const pythonEngineCode = [
-    'import streamlit as st',
-    'import json',
-    'import re',
-    'import os',
-    'import requests',
-    'import sqlite3',
-    'import logging',
-    'import time',
-    'import google.generativeai as genai',
-    'import pypdf',
-    'from datetime import datetime',
-    '',
-    '# --- CONFIGURE LOGGING ---',
-    'logging.basicConfig(',
-    '    filename="careeriq.log",',
-    '    level=logging.INFO,',
-    '    format="%(asctime)s - %(levelname)s - %(message)s"',
-    ')',
-    '',
-    '# --- 1. CONFIGURE GOOGLE AI STUDIO ---',
-    'GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyCSiVkH2wMd6MVoCLeULVdki-_yyCITY8s")',
-    'genai.configure(api_key=GOOGLE_API_KEY)',
-    '',
-    '# --- 2. DATABASE SETUP ---',
-    'conn = sqlite3.connect(\'careeriq.db\', check_same_thread=False)',
-    'c = conn.cursor()',
-    'c.execute(\'\'\'CREATE TABLE IF NOT EXISTS analyses ',
-    '             (id INTEGER PRIMARY KEY, date TEXT, role TEXT, score INTEGER, missing TEXT)\'\'\')',
-    'conn.commit()',
-    '',
-    '# --- 3. SYSTEM PROMPT (Handles MULTI-TASK execution) ---',
-    'SYSTEM_PROMPT = """',
-    'You are the core AI engine for "CareerIQ". You process raw resume text.',
-    'You will receive a JSON payload with a "task" field. Respond with EXACT JSON format.',
-    '',
-    '### STRICT RULES:',
-    '1. ONLY output valid JSON. NO markdown blocks (```json). NO conversational text.',
-    '2. If you cannot read the resume, output: {"error": "Unable to read"}',
-    '',
-    '### TASK 1: "career_gap_analysis"',
-    'Input: {"task": "career_gap_analysis", "resume_text": "...", "target_role": "ML Engineer"}',
-    'Output Schema:',
-    '{',
-    '  "extracted_skills": ["Python", "SQL"],',
-    '  "strong_skills": ["Python", "SQL"],',
-    '  "missing_skills": ["Docker", "PyTorch"],',
-    '  "readiness_score": 45,',
-    '  "readiness_explanation": "2 sentences explaining why they got this score.",',
-    '  "next_best_action": "One actionable sentence.",',
-    '  "roadmap": [',
-    '    {"phase": "Phase 1: Name", "duration": "X Weeks", "focus_skills": ["Skill1"], "action_items": ["Action 1", "Action 2"]},',
-    '    {"phase": "Phase 2: Name", "duration": "X Weeks", "focus_skills": ["Skill2"], "action_items": ["Action 1", "Action 2"]}',
-    '  ],',
-    '  "recommended_projects": ["Project idea 1", "Project idea 2"]',
-    '}',
-    '',
-    '### TASK 2: "interview_preparation"',
-    'Input: {"task": "interview_preparation", "target_role": "ML Engineer", "user_skills": ["Python", "SQL"]}',
-    'Output Schema:',
-    '{',
-    '  "technical_questions": ["Question 1 about user\'s strong skill", "Question 2"],',
-    '  "system_design_questions": ["Role-specific system design scenario"],',
-    '  "behavioral_questions": ["Question about overcoming challenges", "Question about teamwork"]',
-    '}',
-    '',
-    '### TASK 3: "github_analysis"',
-    'Input: {"task": "github_analysis", "username": "user", "repositories": [{"name": "project", "language": "Python", "stars": 0, "description": "a bot"}]}',
-    'Output Schema:',
-    '{',
-    '  "profile_strength": "1-2 sentences assessing the portfolio.",',
-    '  "improvement_suggestions": ["Actionable tip 1", "Actionable tip 2"],',
-    '  "employer_readiness": "Low / Medium / High",',
-    '  "employer_readiness_reason": "Brief explanation of how an employer views this."',
-    '}',
-    '',
-    '### TASK 4: "platform_analytics"',
-    'Input: {"task": "platform_analytics", "leetcode_stats": {"easy": 50, "medium": 120, "hard": 15, "ranking": 15000}, "linkedin_summary": "SDE Intern...", "hackathon_summary": "Won SIH 2023..."}',
-    'Output Schema:',
-    '{',
-    '  "overall_profile_strength": "1-2 sentences assessing their outside-the-classroom engineering profile.",',
-    '  "platform_breakdown": {',
-    '    "leetcode_assessment": "Brief feedback on their problem-solving consistency and difficulty spread.",',
-    '    "hackathon_assessment": "Feedback on their teamwork, innovation, and practical build speed.",',
-    '    "linkedin_assessment": "Feedback on their professional branding and networking visibility."',
-    '  },',
-    '  "growth_suggestions": ["Specific tip to improve LeetCode ranking", "Specific tip to leverage hackathons for jobs", "Specific tip to optimize LinkedIn"],',
-    '  "employer_readiness": "High / Medium / Low"',
-    '}',
-    '"""',
-    '',
-    '@st.cache_resource',
-    'def load_model():',
-    '    return genai.GenerativeModel(',
-    '        model_name="gemini-1.5-flash",',
-    '        system_instruction=SYSTEM_PROMPT',
-    '    )',
-    '',
-    'model = load_model()',
-    '',
-    'def extract_text_from_pdf(uploaded_file):',
-    '    """Extracts text from PDF with error handling for corrupted files."""',
-    '    try:',
-    '        reader = pypdf.PdfReader(uploaded_file)',
-    '        text = ""',
-    '        for page in reader.pages:',
-    '            text += page.extract_text() + " "',
-    '        if not text.strip():',
-    '            logging.warning("Uploaded PDF contained no extractable text (might be an image).")',
-    '            return None',
-    '        return text',
-    '    except Exception as e:',
-    '        logging.error(f"PDF Parsing Error: {e}")',
-    '        return None',
-    '',
-    'def call_gemini_with_retry(input_data: dict, max_retries=2) -> dict:',
-    '    """Calls Gemini API with retry logic for rate limits."""',
-    '    prompt_string = json.dumps(input_data)',
-    '    for attempt in range(max_retries):',
-    '        try:',
-    '            response = model.generate_content(f"Process this task and return strict JSON: {prompt_string}")',
-    '            raw_text = response.text',
-    '            raw_text = re.sub(r"^```json\\s*", "", raw_text).strip()',
-    '            raw_text = re.sub(r"```\\s*$", "", raw_text).strip()',
-    '            return json.loads(raw_text)',
-    '        except json.JSONDecodeError:',
-    '            logging.error("AI returned malformed JSON.")',
-    '            return {"error": "AI returned malformed data. Please try again."}',
-    '        except Exception as e:',
-    '            logging.warning(f"API Error on attempt {attempt + 1}: {e}")',
-    '            time.sleep(2)',
-    '    logging.error("AI API failed after maximum retries.")',
-    '    return {"error": "AI service is currently overloaded. Please try again later."}',
-    '',
-    '# --- 4. PREMIUM UI & STYLING ---',
-    'st.set_page_config(page_title="CareerIQ", page_icon="🚀", layout="wide")',
-    '',
-    '# Inject Custom CSS for Premium Look',
-    'st.markdown("""',
-    '<style>',
-    '    /* Hide Streamlit default elements */',
-    '    #MainMenu {visibility: hidden;}',
-    '    footer {visibility: hidden;}',
-    '    header {visibility: hidden;}',
-    '    ',
-    '    /* Custom Font & Background */',
-    '    .stApp {',
-    '        background-color: #0f172a;',
-    '        color: #ffffff;',
-    '        font-family: \'Inter\', sans-serif;',
-    '    }',
-    '    ',
-    '    /* Metric Cards */',
-    '    div.css-1r6slb0.e1tzin5v2 {',
-    '        background-color: #1e293b;',
-    '        border: 1px solid #334155;',
-    '        border-radius: 10px;',
-    '        padding: 15px;',
-    '    }',
-    '    ',
-    '    /* Buttons */',
-    '    .stButton>button {',
-    '        background-color: #3b82f6;',
-    '        color: white;',
-    '        border-radius: 8px;',
-    '        border: none;',
-    '        font-weight: bold;',
-    '        transition: 0.3s;',
-    '    }',
-    '    .stButton>button:hover {',
-    '        background-color: #2563eb;',
-    '        color: white;',
-    '    }',
-    '    ',
-    '    /* Tabs */',
-    '    .st-b7 {',
-    '        background-color: #1e293b;',
-    '        color: #ffffff;',
-    '    }',
-    '</style>',
-    '""", unsafe_allow_html=True)',
-    '',
-    'st.title("🚀 CareerIQ — AI Career Platform")',
-    'st.caption("Analyze your resume, prepare for interviews, and track your career readiness.")',
-    '',
-    'tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Resume Analyzer", "🎤 Interview Coach", "📜 History & Privacy", "🐙 GitHub", "📈 Platform Analytics"])',
-    '',
-    '# ==========================================',
-    '# TAB 1: RESUME ANALYZER (With Progress Bar)',
-    '# ==========================================',
-    'with tab1:',
-    '    col1, col2 = st.columns([1, 2])',
-    '    with col1:',
-    '        st.subheader("📥 Input Data")',
-    '        target_role = st.selectbox("Select Target Role", ["ML Engineer", "Data Scientist", "Backend Developer"], key="role_tab1")',
-    '        uploaded_file = st.file_uploader("Upload Resume (PDF)", type="pdf", key="pdf_tab1")',
-    '        if st.button("⚡ Run AI Analysis", use_container_width=True):',
-    '            if uploaded_file:',
-    '                with st.spinner("Extracting text and asking Gemini..."):',
-    '                    resume_text = extract_text_from_pdf(uploaded_file)',
-    '                    input_payload = {',
-    '                        "task": "career_gap_analysis",',
-    '                        "resume_text": resume_text,',
-    '                        "target_role": target_role',
-    '                    }',
-    '                    ai_result = call_gemini_with_retry(input_payload)',
-    '                    if ai_result and "error" not in ai_result:',
-    '                        st.session_state.results = ai_result',
-    '                        c.execute("INSERT INTO analyses (date, role, score, missing) VALUES (?, ?, ?, ?)", ',
-    '                                  (datetime.now().strftime("%Y-%m-%d %H:%M"), target_role, ai_result.get("readiness_score", 0), ", ".join(ai_result.get("missing_skills", []))))',
-    '                        conn.commit()',
-    '            else:',
-    '                st.error("Please upload a PDF first.")',
-    '    with col2:',
-    '        st.subheader("📊 AI Dashboard")',
-    '        if "results" in st.session_state:',
-    '            res = st.session_state.results',
-    '            score = res.get(\'readiness_score\', 0)',
-    '            st.markdown(f"#### Readiness Score: **{score}/100**")',
-    '            if score > 70:',
-    '                st.progress(score, text="Excellent! You are ready to apply.")',
-    '            elif score > 40:',
-    '                st.progress(score, text="Getting there. Keep learning.")',
-    '            else:',
-    '                st.progress(score, text="Significant gaps detected. Follow the roadmap below.")',
-    '            st.info(f"🧠 **AI Explanation:** {res.get(\'readiness_explanation\')}")',
-    '            st.success(f"🎯 **Next Action:** {res.get(\'next_best_action\')}")',
-    '            c1, c2 = st.columns(2)',
-    '            c1.markdown("##### ✅ Strong Skills")',
-    '            for s in res.get("strong_skills", []): c1.write(f"- {s}")',
-    '            c2.markdown("##### ❌ Missing Skills")',
-    '            for s in res.get("missing_skills", []): c2.write(f"- {s}")',
-    '            st.divider()',
-    '            st.markdown("##### 🗺️ Personalized Roadmap")',
-    '            timeline_css = """',
-    '            <style>',
-    '                .timeline { position: relative; padding: 20px 0; border-left: 2px solid #334155; margin-left: 10px; }',
-    '                .timeline-item { position: relative; padding-left: 25px; margin-bottom: 30px; }',
-    '                .timeline-item::before { content: \'\'; position: absolute; left: -9px; top: 5px; width: 16px; height: 16px; background-color: #3b82f6; border-radius: 50%; border: 3px solid #0f172a; }',
-    '                .timeline-phase { color: #ffffff; font-weight: 700; font-size: 16px; margin-bottom: 4px; }',
-    '                .timeline-duration { color: #06b6d4; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }',
-    '                .timeline-skills { display: inline-block; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-right: 5px; margin-bottom: 5px; }',
-    '                .timeline-actions { color: #cbd5e1; font-size: 13px; margin-top: 8px; }',
-    '            </style>',
-    '            """',
-    '            st.markdown(timeline_css, unsafe_allow_html=True)',
-    '            timeline_html = \'<div class="timeline">\'',
-    '            for phase in res.get("roadmap", []):',
-    '                skills_html = "".join([f\'<span class="timeline-skills">{skill}</span>\' for skill in phase.get("focus_skills", [])])',
-    '                actions_html = "".join([f\'<div class="timeline-actions">▸ {item}</div>\' for item in phase.get("action_items", [])])',
-    '                timeline_html += f"""<div class="timeline-item"><div class="timeline-phase">{phase.get("phase", "")}</div><div class="timeline-duration">{phase.get("duration", "")}</div><div>{skills_html}</div>{actions_html}</div>"""',
-    '            timeline_html += \'</div>\'',
-    '            st.markdown(timeline_html, unsafe_allow_html=True)',
-    '        else:',
-    '            st.info("Upload resume and click Run AI Analysis.")',
-    '',
-    '# ==========================================',
-    '# TAB 2: INTERVIEW COACH',
-    '# ==========================================',
-    'with tab2:',
-    '    st.subheader("🎤 AI Interview Preparation")',
-    '    st.write("Generate tailored interview questions based on your target role and current skills.")',
-    '    interview_role = st.selectbox("Select Role for Interview", ["ML Engineer", "Data Scientist", "Backend Developer"], key="role_tab2")',
-    '    user_skills_input = st.text_input("Enter your current skills (comma separated)", "Python, SQL, Git")',
-    '    if st.button("Generate Interview Questions"):',
-    '        with st.spinner("AI is preparing questions..."):',
-    '            input_payload = {',
-    '                "task": "interview_preparation",',
-    '                "target_role": interview_role,',
-    '                "user_skills": [s.strip() for s in user_skills_input.split(",")]',
-    '            }',
-    '            questions = call_gemini_with_retry(input_payload)',
-    '            if questions and "error" not in questions:',
-    '                st.session_state.questions = questions',
-    '            else:',
-    '                st.error("Failed to generate questions.")',
-    '    if "questions" in st.session_state:',
-    '        q = st.session_state.questions',
-    '        st.markdown("### 💻 Technical Questions")',
-    '        for question in q.get("technical_questions", []): st.write(f"- {question}")',
-    '        st.markdown("### 🏗️ System Design Questions")',
-    '        for question in q.get("system_design_questions", []): st.write(f"- {question}")',
-    '        st.markdown("### 🤝 Behavioral Questions")',
-    '        for question in q.get("behavioral_questions", []): st.write(f"- {question}")',
-    '',
-    '# ==========================================',
-    '# TAB 3: HISTORY & PRIVACY CONTROLS',
-    '# ==========================================',
-    'with tab3:',
-    '    st.subheader("📜 Past Analyses")',
-    '    rows = c.execute("SELECT * FROM analyses ORDER BY id DESC").fetchall()',
-    '    if rows:',
-    '        for row in rows:',
-    '            st.markdown(f"**{row[1]}** | Role: *{row[2]}* | Score: **{row[3]}/100**")',
-    '            st.write(f"Missing skills: {row[4]}")',
-    '            st.divider()',
-    '    else:',
-    '        st.info("No past analyses found.")',
-    '    st.markdown("---")',
-    '    st.subheader("🔐 Privacy & Data Control")',
-    '    st.write("Because resumes contain personal information, you have the right to delete your history.")',
-    '    if st.button("🗑️ Clear All History (Wipe Database)"):',
-    '        c.execute("DELETE FROM analyses")',
-    '        conn.commit()',
-    '        st.success("Database wiped successfully! Refresh the page to see changes.")',
-    '',
-    '# ==========================================',
-    '# TAB 4: GITHUB INTELLIGENCE',
-    '# ==========================================',
-    'with tab4:',
-    '    st.subheader("🐙 GitHub Profile Analyzer")',
-    '    st.write("Analyze your GitHub repositories to see how employers will judge your code portfolio.")',
-    '    github_username = st.text_input("Enter your GitHub Username", "torvalds")',
-    '    if st.button("Analyze GitHub Profile"):',
-    '        with st.spinner("Fetching repositories from GitHub API..."):',
-    '            try:',
-    '                url = f"https://api.github.com/users/{github_username}/repos?sort=updated&per_page=5"',
-    '                response = requests.get(url)',
-    '                repos = response.json()',
-    '                if response.status_code == 200 and repos:',
-    '                    repo_data = []',
-    '                    for repo in repos:',
-    '                        repo_data.append({',
-    '                            "name": repo["name"],',
-    '                            "language": repo["language"],',
-    '                            "stars": repo["stargazers_count"],',
-    '                            "description": repo["description"]',
-    '                        })',
-    '                    input_payload = {',
-    '                        "task": "github_analysis",',
-    '                        "username": github_username,',
-    '                        "repositories": repo_data',
-    '                    }',
-    '                    github_result = call_gemini_with_retry(input_payload)',
-    '                    if github_result and "error" not in github_result:',
-    '                        st.session_state.github_result = github_result',
-    '                    else:',
-    '                        st.error("AI failed to analyze GitHub profile.")',
-    '                else:',
-    '                    st.error("GitHub user not found or no public repositories.")',
-    '            except Exception as e:',
-    '                st.error(f"Error fetching GitHub data: {e}")',
-    '    if "github_result" in st.session_state:',
-    '        gh = st.session_state.github_result',
-    '        st.markdown("### 📊 Profile Strength")',
-    '        st.info(gh.get("profile_strength", "N/A"))',
-    '        st.markdown("### 💡 Improvement Suggestions")',
-    '        for suggestion in gh.get("improvement_suggestions", []):',
-    '            st.write(f"- {suggestion}")',
-    '        st.markdown("### 🏢 Employer Readiness")',
-    '        st.warning(f"Status: {gh.get(\'employer_readiness\', \'N/A\')}")',
-    '        st.write(f"Reason: {gh.get(\'employer_readiness_reason\', \'N/A\')}")',
-    '',
-    '# ==========================================',
-    '# TAB 5: PLATFORM ANALYTICS & MANAGEMENT',
-    '# ==========================================',
-    'with tab5:',
-    '    st.subheader("📈 Platform Analytics & Account Management")',
-    '    st.write("Connect your engineering profiles to analyze your competitive programming, hackathons, and networking presence.")',
-    '    ',
-    '    col_leet, col_link, col_hack = st.columns(3)',
-    '    with col_leet:',
-    '        st.markdown("##### 💻 LeetCode")',
-    '        leetcode_username = st.text_input("LeetCode Username", key="leet_user")',
-    '    with col_link:',
-    '        st.markdown("##### 💼 LinkedIn")',
-    '        linkedin_summary = st.text_area("Paste LinkedIn \'About\' Section", key="link_summary", height=100)',
-    '    with col_hack:',
-    '        st.markdown("##### 🏆 Hackathons / Unstop")',
-    '        hackathon_summary = st.text_area("Paste Hackathon Wins/Projects", key="hack_summary", height=100)',
-    '',
-    '    if st.button("Analyze Engineering Profile", use_container_width=True):',
-    '        leetcode_stats = None',
-    '        if leetcode_username:',
-    '            with st.spinner(f"Fetching LeetCode stats for {leetcode_username}..."):',
-    '                try:',
-    '                    url = f"https://leetcode-stats-api.herokuapp.com/{leetcode_username}"',
-    '                    response = requests.get(url, timeout=10)',
-    '                    if response.status_code == 200:',
-    '                        data = response.json()',
-    '                        if data.get("status") == "success":',
-    '                            leetcode_stats = {',
-    '                                "easy": data.get("easySolved", 0),',
-    '                                "medium": data.get("mediumSolved", 0),',
-    '                                "hard": data.get("hardSolved", 0),',
-    '                                "ranking": data.get("ranking", 0)',
-    '                            }',
-    '                except Exception as e:',
-    '                    st.warning(f"Could not fetch LeetCode data: {e}")',
-    '',
-    '        input_payload = {',
-    '            "task": "platform_analytics",',
-    '            "leetcode_stats": leetcode_stats if leetcode_stats else {"easy": 0, "medium": 0, "hard": 0, "ranking": 0},',
-    '            "linkedin_summary": linkedin_summary if linkedin_summary else "Not provided.",',
-    '            "hackathon_summary": hackathon_summary if hackathon_summary else "Not provided."',
-    '        }',
-    '',
-    '        with st.spinner("AI is evaluating your competitive profile..."):',
-    '            platform_result = call_gemini_with_retry(input_payload)',
-    '            if platform_result and "error" not in platform_result:',
-    '                st.session_state.platform_result = platform_result',
-    '            else:',
-    '                st.error("Failed to analyze platform data.")',
-    '',
-    '    if "platform_result" in st.session_state:',
-    '        pr = st.session_state.platform_result',
-    '        st.markdown("---")',
-    '        st.markdown("#### 🎯 Overall Engineering Profile")',
-    '        st.info(pr.get("overall_profile_strength", "N/A"))',
-    '        if leetcode_username and leetcode_stats:',
-    '            c1, c2, c3 = st.columns(3)',
-    '            c1.metric("🟢 Easy Solved", leetcode_stats["easy"])',
-    '            c2.metric("🟡 Medium Solved", leetcode_stats["medium"])',
-    '            c3.metric("🔴 Hard Solved", leetcode_stats["hard"])',
-    '        st.markdown("#### 📊 Platform Breakdown")',
-    '        pb = pr.get("platform_breakdown", {})',
-    '        col1, col2 = st.columns(2)',
-    '        with col1:',
-    '            st.markdown("##### 💻 LeetCode & Problem Solving")',
-    '            st.write(pb.get("leetcode_assessment", "N/A"))',
-    '            st.markdown("##### 💼 LinkedIn Branding")',
-    '            st.write(pb.get("linkedin_assessment", "N/A"))',
-    '        with col2:',
-    '            st.markdown("##### 🏆 Hackathons & Innovation")',
-    '            st.write(pb.get("hackathon_assessment", "N/A"))',
-    '        st.markdown("#### 🚀 Growth Suggestions")',
-    '        for tip in pr.get("growth_suggestions", []):',
-    '            st.write(f"- {tip}")',
-    '        st.markdown("---")',
-    '        st.success(f"**Employer Readiness (Extracurricular):** {pr.get(\'employer_readiness\', \'N/A\')}")'
-  ].join('\n');
+  maxScore?: number;
+  size?: number;
+  strokeWidth?: number;
+  isDarkMode?: boolean;
+  duration?: number;
+}> = ({
+  score,
+  maxScore = 100,
+  size = 96,
+  strokeWidth = 8,
+  isDarkMode = true,
+  duration = 1.1
+}) => {
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius; // 251.33
+  const targetOffset = circumference - (circumference * Math.min(score, maxScore)) / maxScore;
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* Top Mobile Header */}
-      <div className="bg-gradient-to-r from-violet-900 via-indigo-900 to-purple-950 p-3 border-b border-indigo-500/20 shadow-md">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-violet-600/30 border border-violet-400/40 flex items-center justify-center text-violet-300">
-              <Compass className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className="text-sm font-extrabold text-white leading-tight">CareerIQ AI Platform</h1>
-              <p className="text-[10px] text-violet-300/80 font-mono">Gemini 2.5 Flash • SQLite Persistence • Interview Coach</p>
-            </div>
-          </div>
-
-          <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-            <Sparkles className="w-2.5 h-2.5 text-amber-300" /> Active
-          </span>
-        </div>
-
-        {/* Task Selector Tabs */}
-        <div className="grid grid-cols-7 gap-0.5 mt-2.5 bg-slate-950/70 p-1 rounded-xl border border-indigo-500/20 text-[9px]">
-          <button
-            onClick={() => setActiveTab('resume')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'resume' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Analyzer
-          </button>
-          <button
-            onClick={() => setActiveTab('gap')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'gap' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Gap Analysis
-          </button>
-          <button
-            onClick={() => setActiveTab('interview')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'interview' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Interview
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'history' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            History DB
-          </button>
-          <button
-            onClick={() => setActiveTab('recommend')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'recommend' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Careers
-          </button>
-          <button
-            onClick={() => setActiveTab('github')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'github' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            GitHub
-          </button>
-          <button
-            onClick={() => setActiveTab('code')}
-            className={`py-1 rounded-lg font-medium transition text-center truncate ${
-              activeTab === 'code' ? 'bg-violet-600 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Python API
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 scrollbar-thin scrollbar-thumb-slate-800">
-        
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div className="bg-slate-900/90 border border-violet-500/40 rounded-2xl p-5 text-center space-y-3 animate-pulse my-2 shadow-xl">
-            <div className="w-10 h-10 rounded-2xl bg-violet-600/30 border border-violet-400/40 mx-auto flex items-center justify-center text-violet-300 animate-spin">
-              <RefreshCw className="w-5 h-5" />
-            </div>
-            <h3 className="text-xs font-bold text-white">CareerIQ AI Processing</h3>
-            <p className="text-[11px] text-violet-300 font-mono">{statusMessage}</p>
-          </div>
-        )}
-
-        {/* PRIMARY TASK: RESUME PARSER & ROADMAP GENERATOR */}
-        {!isLoading && activeTab === 'resume' && (
-          <div className="space-y-3">
-            {/* Input Panel */}
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2.5 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-violet-400" /> Resume Text & Target Role Analyzer
-                </span>
-                <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono">
-                  Raw Text Engine
-                </span>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Target Role</label>
-                <input 
-                  type="text" 
-                  value={resumeInput.target_role}
-                  onChange={e => setResumeInput({...resumeInput, target_role: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                  placeholder="e.g. ML Engineer, Data Scientist"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Raw Resume Text</label>
-                <textarea 
-                  rows={3}
-                  value={resumeInput.resume_text}
-                  onChange={e => setResumeInput({...resumeInput, resume_text: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500 font-mono leading-relaxed"
-                  placeholder="Paste raw resume content here..."
-                />
-              </div>
-
-              <button
-                onClick={() => executeCareerIQAi(resumeInput, 'resume_analysis')}
-                className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-2 rounded-xl shadow-md text-xs flex items-center justify-center gap-1.5 transition"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" /> Analyze Resume & Save to DB
-              </button>
-            </div>
-
-            {/* Analysis Output Result */}
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950/80 border border-indigo-500/30 rounded-2xl p-3 space-y-3">
-              {/* Readiness Score Banner */}
-              <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
-                <div>
-                  <span className="text-[9px] font-mono text-violet-400 font-bold uppercase tracking-wider block">
-                    Target Role: {resumeInput.target_role}
-                  </span>
-                  <h3 className="text-sm font-extrabold text-white">Extracted Skills & Readiness</h3>
-                </div>
-                <div className="text-right">
-                  <span className="bg-violet-500/20 border border-violet-400/40 px-2.5 py-1 rounded-xl text-violet-300 text-xs font-black">
-                    {resumeResult.readiness_score}/100 Readiness
-                  </span>
-                </div>
-              </div>
-
-              {/* Extracted Skills Breakdown */}
-              <div className="space-y-1.5 text-xs">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block mb-1">Extracted Skills from Resume</span>
-                  <div className="flex flex-wrap gap-1">
-                    {resumeResult.extracted_skills.map((s, i) => (
-                      <span key={i} className="bg-slate-950 text-slate-300 border border-slate-800 text-[10px] px-2 py-0.5 rounded-lg font-mono">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div>
-                    <span className="text-[10px] font-bold text-emerald-400 block mb-1">Strong Matching Skills</span>
-                    <div className="flex flex-wrap gap-1">
-                      {resumeResult.strong_skills.map((s, i) => (
-                        <span key={i} className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[9px] px-1.5 py-0.5 rounded font-mono">
-                          ✓ {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-400 block mb-1">Missing Gap Skills</span>
-                    <div className="flex flex-wrap gap-1">
-                      {resumeResult.missing_skills.map((s, i) => (
-                        <span key={i} className="bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[9px] px-1.5 py-0.5 rounded font-mono">
-                          ! {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Readiness Explanation */}
-              <div className="bg-slate-950/70 p-2.5 rounded-xl border border-white/5 space-y-1">
-                <h4 className="text-[11px] font-bold text-slate-200">Readiness Explanation</h4>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {resumeResult.readiness_explanation}
-                </p>
-              </div>
-
-              {/* Next Best Action */}
-              <div className="bg-indigo-950/60 border border-indigo-500/30 p-2.5 rounded-xl space-y-0.5">
-                <span className="text-[10px] font-bold text-indigo-300 flex items-center gap-1">
-                  <ArrowRight className="w-3 h-3 text-indigo-400" /> Recommended Next Best Action
-                </span>
-                <p className="text-xs text-white font-semibold">{resumeResult.next_best_action}</p>
-              </div>
-
-              {/* Personalized Roadmap */}
-              <div className="space-y-2 pt-1">
-                <h4 className="text-xs font-bold text-white flex items-center gap-1">
-                  <Layers className="w-3.5 h-3.5 text-violet-400" /> Personalized Learning Roadmap
-                </h4>
-                {resumeResult.roadmap.map((p, idx) => (
-                  <div key={idx} className="bg-slate-950/90 border border-slate-800 p-2.5 rounded-xl text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-violet-300">{p.phase}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{p.duration}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {p.focus_skills.map((fs, i) => (
-                        <span key={i} className="bg-violet-500/10 text-violet-300 text-[9px] px-1.5 py-0.5 rounded font-mono">
-                          {fs}
-                        </span>
-                      ))}
-                    </div>
-                    <ul className="space-y-1 text-[11px] text-slate-300 pt-1">
-                      {p.action_items.map((ai, i) => (
-                        <li key={i} className="flex items-start gap-1.5">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{ai}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              {/* Recommended Projects */}
-              <div className="space-y-1 pt-1">
-                <h4 className="text-xs font-bold text-white flex items-center gap-1">
-                  <Briefcase className="w-3.5 h-3.5 text-indigo-400" /> Recommended Portfolio Projects
-                </h4>
-                <div className="space-y-1.5">
-                  {resumeResult.recommended_projects.map((proj, i) => (
-                    <div key={i} className="bg-slate-950 p-2.5 rounded-xl text-xs text-slate-200 border border-slate-800/80 leading-relaxed">
-                      🚀 {proj}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TASK: CAREER GAP ANALYSIS */}
-        {!isLoading && activeTab === 'gap' && (
-          <div className="space-y-3">
-            {/* Input Form Panel */}
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2.5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-violet-400" /> Task: career_gap_analysis
-                </span>
-                <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono">
-                  Readiness: {gapInput.readiness_score}%
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Target Role</label>
-                  <input 
-                    type="text" 
-                    value={gapInput.target_role}
-                    onChange={e => setGapInput({...gapInput, target_role: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Readiness Score ({gapInput.readiness_score}%)</label>
-                  <input 
-                    type="range" 
-                    min="10" 
-                    max="100"
-                    value={gapInput.readiness_score}
-                    onChange={e => setGapInput({...gapInput, readiness_score: parseInt(e.target.value)})}
-                    className="w-full accent-violet-500 mt-1"
-                  />
-                </div>
-              </div>
-
-              {/* Skills Tags */}
-              <div className="space-y-1 text-xs">
-                <label className="text-[10px] font-bold text-emerald-400 block">Strong Skills</label>
-                <div className="flex flex-wrap gap-1">
-                  {gapInput.strong_skills.map((s, i) => (
-                    <span key={i} className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1">
-                      {s}
-                      <button onClick={() => setGapInput({...gapInput, strong_skills: gapInput.strong_skills.filter(x => x !== s)})} className="text-emerald-500 hover:text-rose-400">×</button>
-                    </span>
-                  ))}
-                </div>
-
-                <label className="text-[10px] font-bold text-amber-400 block pt-1">Missing Skills to Bridge</label>
-                <div className="flex flex-wrap gap-1">
-                  {gapInput.missing_skills.map((s, i) => (
-                    <span key={i} className="bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1">
-                      {s}
-                      <button onClick={() => setGapInput({...gapInput, missing_skills: gapInput.missing_skills.filter(x => x !== s)})} className="text-amber-500 hover:text-rose-400">×</button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={() => executeCareerIQAi(gapInput, 'career_gap_analysis')}
-                className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-2 rounded-xl shadow-md text-xs flex items-center justify-center gap-1.5 transition"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" /> Execute Gap Analysis Task
-              </button>
-            </div>
-
-            {/* Results Display */}
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950/80 border border-indigo-500/30 rounded-2xl p-3 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-violet-400 font-bold uppercase tracking-wider">
-                  Analysis Output
-                </span>
-                <span className="bg-violet-500/20 border border-violet-400/30 px-2 py-0.5 rounded-full text-violet-300 text-[10px] font-extrabold">
-                  Score: {gapInput.readiness_score}%
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-xs font-bold text-white">Readiness Explanation</h3>
-                <p className="text-xs text-slate-300 leading-relaxed mt-0.5 bg-slate-950/60 p-2.5 rounded-xl border border-white/5">
-                  {gapResult.readiness_explanation}
-                </p>
-              </div>
-
-              <div className="bg-indigo-950/50 border border-indigo-500/30 p-2.5 rounded-xl">
-                <span className="text-[10px] font-bold text-indigo-300 flex items-center gap-1 mb-0.5">
-                  <ArrowRight className="w-3 h-3 text-indigo-400" /> Next Best Action
-                </span>
-                <p className="text-xs text-white font-semibold">{gapResult.next_best_action}</p>
-              </div>
-
-              {/* Roadmap Phases */}
-              <div className="space-y-2 pt-1">
-                <h4 className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
-                  <Layers className="w-3.5 h-3.5 text-violet-400" /> Roadmap Phases ({gapResult.roadmap.length})
-                </h4>
-                {gapResult.roadmap.map((p, idx) => (
-                  <div key={idx} className="bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-violet-300">{p.phase}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{p.duration}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {p.focus_skills.map((fs, i) => (
-                        <span key={i} className="bg-violet-500/10 text-violet-300 text-[9px] px-1.5 py-0.5 rounded font-mono">
-                          {fs}
-                        </span>
-                      ))}
-                    </div>
-                    <ul className="space-y-1 text-[11px] text-slate-300 pt-1">
-                      {p.action_items.map((ai, i) => (
-                        <li key={i} className="flex items-start gap-1.5">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{ai}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              {/* Recommended Projects */}
-              <div>
-                <h4 className="text-[11px] font-bold text-slate-300 flex items-center gap-1 mb-1">
-                  <Briefcase className="w-3.5 h-3.5 text-indigo-400" /> Portfolio Capstone Projects
-                </h4>
-                <div className="space-y-1">
-                  {gapResult.recommended_projects.map((proj, i) => (
-                    <div key={i} className="bg-slate-950 p-2 rounded-xl text-xs text-slate-200 border border-slate-800/80">
-                      🚀 {proj}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TASK: INTERVIEW PREPARATION */}
-        {!isLoading && activeTab === 'interview' && (
-          <div className="space-y-3">
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2.5 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400" /> Task: interview_preparation
-                </span>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Target Role</label>
-                <input 
-                  type="text" 
-                  value={interviewInput.target_role}
-                  onChange={e => setInterviewInput({...interviewInput, target_role: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Your Current Skills (Comma Separated)</label>
-                <input 
-                  type="text" 
-                  value={interviewInput.user_skills.join(', ')}
-                  onChange={e => setInterviewInput({...interviewInput, user_skills: e.target.value.split(',').map(s => s.trim())})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-mono"
-                  placeholder="Python, SQL, Git"
-                />
-              </div>
-
-              <button
-                onClick={() => executeCareerIQAi(interviewInput, 'interview_preparation')}
-                className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-2 rounded-xl shadow-md text-xs flex items-center justify-center gap-1.5 transition"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" /> Generate Tailored Interview Questions
-              </button>
-            </div>
-
-            {/* Questions Result */}
-            <div className="space-y-2">
-              <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1.5">
-                <h4 className="text-xs font-bold text-violet-300 flex items-center gap-1">
-                  💻 Technical Questions ({interviewResult.technical_questions.length})
-                </h4>
-                {interviewResult.technical_questions.map((q, i) => (
-                  <div key={i} className="bg-slate-950 p-2.5 rounded-xl text-xs text-slate-200 border border-slate-800/80 leading-relaxed">
-                    <strong className="text-violet-400 mr-1.5">Q{i+1}:</strong> {q}
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1.5">
-                <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1">
-                  🏗️ System Design Scenarios
-                </h4>
-                {interviewResult.system_design_questions.map((q, i) => (
-                  <div key={i} className="bg-slate-950 p-2.5 rounded-xl text-xs text-slate-200 border border-slate-800/80 leading-relaxed">
-                    <strong className="text-amber-400 mr-1.5">SD:</strong> {q}
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1.5">
-                <h4 className="text-xs font-bold text-emerald-300 flex items-center gap-1">
-                  🗣️ Behavioral Questions
-                </h4>
-                {interviewResult.behavioral_questions.map((q, i) => (
-                  <div key={i} className="bg-slate-950 p-2.5 rounded-xl text-xs text-slate-200 border border-slate-800/80 leading-relaxed">
-                    <strong className="text-emerald-400 mr-1.5">BQ:</strong> {q}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: DATABASE HISTORY */}
-        {!isLoading && activeTab === 'history' && (
-          <div className="space-y-3">
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-indigo-400" /> Past Analyses (SQLite Database Storage)
-                </span>
-                <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">
-                  careeriq.db
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                All resume analyses run in Tab 1 are automatically saved to SQLite storage.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {historyRecords.length > 0 ? (
-                historyRecords.map(item => (
-                  <div key={item.id} className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-500" /> {item.date}
-                      </span>
-                      <span className="bg-violet-500/20 text-violet-300 border border-violet-400/30 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                        Score: {item.score}/100
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-0.5">
-                      <h4 className="font-extrabold text-white text-xs">Target Role: {item.role}</h4>
-                    </div>
-
-                    <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/80 text-[11px]">
-                      <span className="text-[10px] font-bold text-amber-400 block mb-0.5">Missing Skills:</span>
-                      <p className="text-slate-300 font-mono">{item.missing}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="bg-slate-900 p-6 rounded-2xl text-center text-slate-400 text-xs border border-slate-800">
-                  No past analyses found. Run an analysis in the Analyzer tab to save it to the SQLite database.
-                </div>
-              )}
-            </div>
-
-            {/* Privacy & Data Control */}
-            <div className="bg-slate-900/90 border border-rose-500/20 p-3 rounded-2xl space-y-2 text-xs mt-3">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-rose-300 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-rose-400" /> 🔐 Privacy & Data Control
-                </span>
-                <span className="text-[9px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded font-mono font-bold">
-                  GDPR / Privacy Compliant
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Because resumes contain sensitive personal information, you have the absolute right to wipe your analysis history at any time.
-              </p>
-              <button
-                onClick={() => setHistoryRecords([])}
-                className="w-full bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> 🗑️ Clear All History (Wipe Database)
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* TASK: RECOMMEND CAREERS */}
-        {!isLoading && activeTab === 'recommend' && (
-          <div className="space-y-3">
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2.5 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 text-indigo-400" /> Task: recommend_careers
-                </span>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Your Extracted Skills</label>
-                <div className="flex flex-wrap gap-1 mb-1">
-                  {recommendInput.user_skills.map((s, i) => (
-                    <span key={i} className="bg-slate-950 border border-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-lg flex items-center gap-1 font-mono">
-                      {s}
-                      <button onClick={() => setRecommendInput({...recommendInput, user_skills: recommendInput.user_skills.filter(x => x !== s)})} className="text-slate-500 hover:text-rose-400">×</button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={() => executeCareerIQAi(recommendInput, 'recommend_careers')}
-                className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-2 rounded-xl shadow-md text-xs flex items-center justify-center gap-1.5 transition"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" /> Recommend Roles
-              </button>
-            </div>
-
-            {/* Recommendations List */}
-            <div className="space-y-2">
-              {recommendResult.recommended_roles.map((r, i) => (
-                <div key={i} className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-white text-sm">{r.role}</h4>
-                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                      Recommended
-                    </span>
-                  </div>
-                  <p className="text-slate-300 bg-slate-950 p-2 rounded-xl border border-slate-800/80 text-[11px] leading-relaxed">
-                    {r.match_reason}
-                  </p>
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-400 block mb-0.5">Skills to Add:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {r.skills_to_add.map((sa, idx) => (
-                        <span key={idx} className="bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[9px] px-1.5 py-0.5 rounded font-mono">
-                          + {sa}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TASK: GITHUB ANALYSIS */}
-        {!isLoading && activeTab === 'github' && (
-          <div className="space-y-3">
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2.5 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <Github className="w-3.5 h-3.5 text-purple-400" /> Task: github_analysis
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Repo Name</label>
-                  <input 
-                    type="text" 
-                    value={githubInput.repo_name}
-                    onChange={e => setGithubInput({...githubInput, repo_name: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-0.5">Commits ({githubInput.commit_count})</label>
-                  <input 
-                    type="number" 
-                    value={githubInput.commit_count}
-                    onChange={e => setGithubInput({...githubInput, commit_count: parseInt(e.target.value) || 0})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 py-1">
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={githubInput.has_readme}
-                    onChange={e => setGithubInput({...githubInput, has_readme: e.target.checked})}
-                    className="rounded accent-violet-500"
-                  />
-                  Has README.md
-                </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={githubInput.has_tests}
-                    onChange={e => setGithubInput({...githubInput, has_tests: e.target.checked})}
-                    className="rounded accent-violet-500"
-                  />
-                  Has Unit Tests
-                </label>
-              </div>
-
-              <button
-                onClick={() => executeCareerIQAi(githubInput, 'github_analysis')}
-                className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-2 rounded-xl shadow-md text-xs flex items-center justify-center gap-1.5 transition"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" /> Analyze Repository
-              </button>
-            </div>
-
-            {/* Analysis Output */}
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white">Employer Readiness Rating</span>
-                <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs ${
-                  githubResult.employer_readiness === 'High' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                  githubResult.employer_readiness === 'Medium' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                  'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                }`}>
-                  {githubResult.employer_readiness} Readiness
-                </span>
-              </div>
-
-              <p className="text-slate-300 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
-                {githubResult.profile_strength}
-              </p>
-
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block mb-1">Improvement Suggestions</span>
-                <ul className="space-y-1">
-                  {githubResult.improvement_suggestions.map((sug, i) => (
-                    <li key={i} className="bg-slate-950 p-2 rounded-xl text-slate-200 border border-slate-800/80 flex items-start gap-1.5">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                      <span>{sug}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px] text-slate-400 italic">
-                <strong>Employer View:</strong> {githubResult.employer_readiness_reason}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* CODE TAB: PYTHON API IMPLEMENTATION */}
-        {!isLoading && activeTab === 'code' && (
-          <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-              <span className="font-mono text-violet-300 font-bold flex items-center gap-1">
-                <Code className="w-3.5 h-3.5" /> app.py (Streamlit + SQLite + Gemini)
-              </span>
-              <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded font-mono">
-                Multi-Feature Engine
-              </span>
-            </div>
-
-            <pre className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300 overflow-x-auto leading-relaxed">
-              <code>{pythonEngineCode}</code>
-            </pre>
-
-            {/* Regex execution logs */}
-            {rawTextLog && (
-              <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2">
-                <h4 className="text-xs font-bold text-white flex items-center gap-1">
-                  <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Live Gemini Raw Output Log
-                </h4>
-                <div>
-                  <span className="text-[9px] text-slate-400 block mb-0.5 font-mono">1. Raw Output (Before Regex):</span>
-                  <pre className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-[9px] font-mono text-amber-300 overflow-x-auto max-h-32">
-                    <code>{rawTextLog}</code>
-                  </pre>
-                </div>
-
-                <div>
-                  <span className="text-[9px] text-slate-400 block mb-0.5 font-mono">2. Cleaned Output (After Regex re.sub):</span>
-                  <pre className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-[9px] font-mono text-emerald-300 overflow-x-auto max-h-32">
-                    <code>{cleanedJsonLog}</code>
-                  </pre>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
+    <div 
+      className="relative shrink-0 flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+        <defs>
+          <linearGradient id="readinessRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#6366f1" />
+            <stop offset="50%" stopColor="#8b5cf6" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+        {/* Background Track Ring */}
+        <circle
+          cx="50"
+          cy="50"
+          r={radius}
+          stroke={isDarkMode ? '#1e293b' : '#e2e8f0'}
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Framer Motion Animated Stroke Ring */}
+        <motion.circle
+          cx="50"
+          cy="50"
+          r={radius}
+          stroke="url(#readinessRingGradient)"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: targetOffset }}
+          transition={{ duration, ease: [0.16, 1, 0.3, 1] }}
+          strokeLinecap="round"
+          fill="transparent"
+          filter="url(#glow)"
+        />
+      </svg>
+      {/* Center Animated Number Counter */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <motion.span 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="text-lg font-black text-white font-mono leading-none"
+        >
+          <AnimatedScoreCounter value={score} duration={duration} />
+          <span className="text-[10px] text-slate-400 font-normal">/{maxScore}</span>
+        </motion.span>
+        <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider mt-0.5">
+          Ready
+        </span>
       </div>
     </div>
   );
 };
 
+export const AnimatedProgressBar: React.FC<{
+  percentage: number;
+  colorClass?: string;
+  duration?: number;
+  delay?: number;
+  heightClass?: string;
+}> = ({
+  percentage,
+  colorClass = "bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400",
+  duration = 0.6,
+  delay = 0,
+  heightClass = "h-1.5"
+}) => {
+  return (
+    <div className={`w-full bg-slate-900 rounded-full ${heightClass} overflow-hidden`}>
+      <motion.div 
+        className={`h-full ${colorClass} rounded-full`}
+        initial={{ width: "0%" }}
+        animate={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+        transition={{ duration, delay, ease: [0.16, 1, 0.3, 1] }}
+      />
+    </div>
+  );
+};
+
+// --- DATA STRUCTURES & TYPES ---
+
+export interface UserProfile {
+  name: string;
+  college: string;
+  degree: string;
+  department: string;
+  year: string;
+  currentSkills: string[];
+  programmingLanguages: string[];
+  interests: string[];
+  experienceLevel: string;
+  targetRole: string;
+  targetCompany: string;
+  github: string;
+  linkedin: string;
+  leetcode: string;
+  streak: number;
+  xp: number;
+}
+
+export interface RoadmapTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface RoadmapStage {
+  id: string;
+  title: string;
+  subtitle: string;
+  duration: string;
+  skills: string[];
+  tasks: RoadmapTask[];
+  project: string;
+  resources: string[];
+}
+
+export interface ProjectRecommendation {
+  id: string;
+  title: string;
+  problem: string;
+  technologies: string[];
+  features: string[];
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  duration: string;
+  resumeBullet: string;
+  readmeTip: string;
+}
+
+export interface MockQuestion {
+  id: string;
+  type: 'Technical' | 'System Design' | 'Behavioral' | 'HR';
+  question: string;
+  context: string;
+  sampleAnswer: string;
+  keyTopics: string[];
+}
+
+export interface LearningTask {
+  id: string;
+  title: string;
+  category: 'Daily' | 'Weekly' | 'Revision' | 'Project';
+  priority: 'High' | 'Medium' | 'Low';
+  completed: boolean;
+  dueDate: string;
+}
+
+export interface AchievementBadge {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  unlocked: boolean;
+}
+
+// --- DEFAULT STATE CONSTANTS ---
+
+const DEFAULT_PROFILE: UserProfile = {
+  name: 'Alex Chen',
+  college: 'National Tech Institute',
+  degree: 'B.Tech / B.S. in Computer Science',
+  department: 'Computer Science & Engineering',
+  year: 'Junior (3rd Year, Class of 2027)',
+  currentSkills: ['Python', 'SQL', 'Git', 'Data Structures & Algorithms', 'HTML/CSS', 'Basic React', 'FastAPI'],
+  programmingLanguages: ['Python', 'C++', 'JavaScript', 'SQL'],
+  interests: ['Machine Learning', 'Full Stack Development', 'Distributed Systems'],
+  experienceLevel: 'Student / Early Career',
+  targetRole: 'Machine Learning Engineer',
+  targetCompany: 'Google',
+  github: 'alexchen-dev',
+  linkedin: 'alexchen-tech',
+  leetcode: 'alex_code99',
+  streak: 7,
+  xp: 1450
+};
+
+const DEFAULT_STAGES: RoadmapStage[] = [
+  {
+    id: 'stage_1',
+    title: '1. Foundation',
+    subtitle: 'Core CS & Programming Syntax',
+    duration: '2-3 Weeks',
+    skills: ['Python Fundamentals', 'Git/GitHub Workflow', 'OOP Concepts'],
+    project: 'CLI Task Manager with JSON Persistence & Git Versioning',
+    resources: ['Python 3.12 Official Docs', 'Pro Git Book (Free)', 'Real Python Tutorials'],
+    tasks: [
+      { id: 't1_1', title: 'Master Python OOP: Classes, Inheritance & Dunder Methods', completed: true },
+      { id: 't1_2', title: 'Setup GitHub SSH keys, branch workflows & PR conventions', completed: true },
+      { id: 't1_3', title: 'Implement File I/O & Exception Handling patterns', completed: true }
+    ]
+  },
+  {
+    id: 'stage_2',
+    title: '2. Programming',
+    subtitle: 'Advanced Language Idioms & Clean Code',
+    duration: '3-4 Weeks',
+    skills: ['Memory Management', 'Async/Await & Coroutines', 'Unit Testing & PyTest'],
+    project: 'High-Performance Asynchronous Data Fetcher with Rate Limiting',
+    resources: ['Fluent Python', 'Real Python Async Guides', 'Test-Driven Development with Python'],
+    tasks: [
+      { id: 't2_1', title: 'Master asynchronous I/O and asyncio event loop patterns', completed: true },
+      { id: 't2_2', title: 'Write 90%+ coverage unit test suites using PyTest & mock fixtures', completed: true },
+      { id: 't2_3', title: 'Implement clean architectural design patterns (Repository, Factory)', completed: false }
+    ]
+  },
+  {
+    id: 'stage_3',
+    title: '3. DSA',
+    subtitle: 'Data Structures & Algorithms Mastery',
+    duration: '4-6 Weeks',
+    skills: ['Arrays & HashMaps', 'Trees & Graphs', 'Dynamic Programming', 'SQL Schema Design'],
+    project: 'High-Throughput In-Memory Key-Value Store with LRU Cache',
+    resources: ['NeetCode 150 Roadmap', 'PostgreSQL Exercises', 'MIT 6.006 Algorithms'],
+    tasks: [
+      { id: 't3_1', title: 'Solve 75 LeetCode Easy/Medium problems (Two Pointers & Sliding Window)', completed: true },
+      { id: 't3_2', title: 'Implement Binary Search Trees & Graph BFS/DFS from scratch', completed: true },
+      { id: 't3_3', title: 'Master SQL Joins, Window Functions & Index Optimization', completed: false }
+    ]
+  },
+  {
+    id: 'stage_4',
+    title: '4. Projects',
+    subtitle: 'Production Containerization & Capstone Build',
+    duration: '4-5 Weeks',
+    skills: ['Docker', 'Vector Databases (ChromaDB)', 'FastAPI', 'Model Serving'],
+    project: 'Autonomous Resume Semantic Matcher using Vector Embeddings & Docker',
+    resources: ['Docker Mastery Course', 'ChromaDB Docs', 'Full Stack Deep Learning'],
+    tasks: [
+      { id: 't4_1', title: 'Dockerize PyTorch model inference container with multi-stage builds', completed: false },
+      { id: 't4_2', title: 'Integrate Vector Search pipeline for high-speed similarity queries', completed: false },
+      { id: 't4_3', title: 'Write comprehensive GitHub README with architecture diagrams & benchmarks', completed: false }
+    ]
+  },
+  {
+    id: 'stage_5',
+    title: '5. Internship',
+    subtitle: 'Open Source, Hackathons & Industry Presence',
+    duration: '3-4 Weeks',
+    skills: ['Open Source PRs', 'Hackathon Builds', 'Technical Portfolio'],
+    project: 'Published PyPI / Hugging Face Open-Source Model Demo',
+    resources: ['Good First Issue Tracker', 'Hugging Face Spaces Guide', 'Tech Twitter/LinkedIn Tips'],
+    tasks: [
+      { id: 't5_1', title: 'Contribute 2 merged PRs to open-source developer repositories', completed: false },
+      { id: 't5_2', title: 'Deploy live portfolio demo on Hugging Face Spaces or Vercel', completed: false },
+      { id: 't5_3', title: 'Apply to 20+ internships and reach out to hiring managers on LinkedIn', completed: false }
+    ]
+  },
+  {
+    id: 'stage_6',
+    title: '6. Interview Preparation',
+    subtitle: 'Technical Rigor, System Design & STAR Stories',
+    duration: '3-4 Weeks',
+    skills: ['ML System Design', 'STAR Method Behavioral', 'Live Coding Speed'],
+    project: '10 Fully Documented Mock Interview Transcripts with Feedback',
+    resources: ['Grokking the ML System Design Interview', 'Cracking the Coding Interview', 'Tech Interview Handbook'],
+    tasks: [
+      { id: 't6_1', title: 'Practice 10 System Design architectures (e.g. YouTube Recommender, Feed Ranking)', completed: false },
+      { id: 't6_2', title: 'Prepare 5 STAR stories for leadership, conflict resolution & project impact', completed: false },
+      { id: 't6_3', title: 'Complete 3 full-length AI mock interview rounds with CareerPilot Coach', completed: false }
+    ]
+  },
+  {
+    id: 'stage_7',
+    title: '7. Job Ready',
+    subtitle: 'Referrals, Application Sprints & Offer Negotiation',
+    duration: 'Ongoing',
+    skills: ['ATS Resume Optimization', 'Cold Networking', 'Salary Negotiation'],
+    project: '50 Targeted Applications with Tailored Resume Bullet Points',
+    resources: ['Levels.fyi Negotiation Guide', 'LinkedIn Boolean Search', 'Referral Outreach Templates'],
+    tasks: [
+      { id: 't7_1', title: 'Score 90+ on CareerPilot ATS Resume Analyzer for target role', completed: false },
+      { id: 't7_2', title: 'Connect with 15 engineers/alumni at target companies for referrals', completed: false },
+      { id: 't7_3', title: 'Track application pipeline with deadline reminders in Learning Planner', completed: false }
+    ]
+  }
+];
+
+export interface ProjectCardItem {
+  id: string;
+  title: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  technologies: string[];
+  description: string;
+  careerValue: string;
+  duration: string;
+  resumeBullet: string;
+}
+
+const DEFAULT_PROJECT_ITEMS: ProjectCardItem[] = [
+  {
+    id: 'p_beg_1',
+    title: 'CLI Task Manager & Developer Habit Engine',
+    difficulty: 'Beginner',
+    technologies: ['Python', 'SQLite', 'Argparse', 'Rich CLI'],
+    description: 'A lightweight command-line productivity tool with automated JSON/SQLite backup, colorized terminal reporting, and streak tracking.',
+    careerValue: 'Demonstrates rock-solid core CS fundamentals, clean OOP architecture, robust exception handling, and mastery of version control.',
+    duration: '1-2 Weeks',
+    resumeBullet: 'Engineered a modular CLI productivity tool in Python and SQLite, implementing custom sorting algorithms and automated backups with 100% test coverage.'
+  },
+  {
+    id: 'p_beg_2',
+    title: 'Real-time Markdown Documentation Generator',
+    difficulty: 'Beginner',
+    technologies: ['TypeScript', 'Node.js', 'Express', 'Tailwind CSS'],
+    description: 'A browser-based live markdown editor that parses AST nodes in real-time, generates table of contents, and exports formatted PDFs.',
+    careerValue: 'Proves client-side DOM manipulation, reactive state handling, and full-stack API integration for entry-level engineering roles.',
+    duration: '1-2 Weeks',
+    resumeBullet: 'Developed a real-time markdown documentation generator in TypeScript and Express, reducing technical spec drafting time by 30% for student engineering teams.'
+  },
+  {
+    id: 'p_int_1',
+    title: 'AI Resume ATS Matcher & Semantic Ranker',
+    difficulty: 'Intermediate',
+    technologies: ['Python', 'PyTorch', 'FastAPI', 'ChromaDB', 'Docker'],
+    description: 'An AI-powered semantic search engine that extracts text from PDFs, calculates cosine embeddings against job descriptions, and flags missing keywords.',
+    careerValue: 'High-signal project for ML & Backend roles: shows modern embeddings, vector databases, containerization, and REST microservices.',
+    duration: '2-3 Weeks',
+    resumeBullet: 'Architected and containerized a semantic resume matching engine in PyTorch & FastAPI, processing 50+ resume formats with ChromaDB vector search to boost candidate ATS match rate by 42%.'
+  },
+  {
+    id: 'p_int_2',
+    title: 'Distributed In-Memory Key-Value Store',
+    difficulty: 'Intermediate',
+    technologies: ['Go', 'Raft Consensus', 'gRPC', 'Protobuf'],
+    description: 'A fault-tolerant distributed key-value store using Raft consensus for leader election and log replication with consistent hashing.',
+    careerValue: 'Stands out immensely in Systems and Backend interviews by proving distributed consensus, networking protocols, and concurrent mutex locks.',
+    duration: '3 Weeks',
+    resumeBullet: 'Implemented a distributed key-value database in Go with Raft consensus and gRPC, achieving 15k QPS with sub-5ms replication latency across a 3-node cluster.'
+  },
+  {
+    id: 'p_adv_1',
+    title: 'Real-Time Streaming Fraud Detection Pipeline',
+    difficulty: 'Advanced',
+    technologies: ['Python', 'XGBoost', 'Apache Kafka', 'Docker', 'MLflow'],
+    description: 'An enterprise-grade streaming analytics pipeline that flags anomalous credit card transactions with sub-40ms P99 inference latency.',
+    careerValue: 'Crucial for Machine Learning Engineer & Data Engineer roles: demonstrates end-to-end MLOps, streaming pipelines, drift monitoring, and Docker.',
+    duration: '3-4 Weeks',
+    resumeBullet: 'Engineered an end-to-end streaming fraud detection pipeline with XGBoost and MLflow, attaining 96.8% ROC-AUC on 2M synthetic transactions with sub-40ms P99 inference latency.'
+  },
+  {
+    id: 'p_adv_2',
+    title: 'High-Concurrency Collaborative Code Sandbox',
+    difficulty: 'Advanced',
+    technologies: ['Rust', 'WebSockets', 'WebAssembly', 'CRDTs', 'Docker'],
+    description: 'A browser-based multi-user code editor with conflict-free replicated data types (CRDTs) and isolated sandboxed code execution containers.',
+    careerValue: 'World-class tier portfolio capstone: shows systems programming in Rust, real-time WebSockets, secure container sandboxing, and operational transform.',
+    duration: '4 Weeks',
+    resumeBullet: 'Built a real-time collaborative coding platform in Rust and WebSockets using Yjs CRDTs, supporting 50+ simultaneous editors with zero-conflict document convergence.'
+  }
+];
+
+const DEFAULT_QUESTIONS: MockQuestion[] = [
+  {
+    id: 'q_tech_1',
+    type: 'Technical',
+    question: 'How do Python GIL limitations impact multi-threaded CPU-bound operations vs I/O-bound tasks?',
+    context: 'Assesses deep Python runtime mechanics, threading versus multiprocessing, and concurrency knowledge.',
+    sampleAnswer: 'The Global Interpreter Lock (GIL) ensures only one native thread executes Python bytecode at a time. For CPU-bound tasks (like matrix math), multi-threading suffers from lock contention without parallelism; multiprocessing or C-extensions (NumPy/PyTorch) are required. For I/O-bound tasks (network/disk), threads release the GIL during blocking operations, making async/threading highly effective.',
+    keyTopics: ['GIL Mechanics', 'CPU vs I/O Bound', 'Multiprocessing', 'NumPy/PyTorch C-extensions']
+  },
+  {
+    id: 'q_tech_2',
+    type: 'Technical',
+    question: 'Explain the difference between SQL indexing with B-Trees vs Hash Indexes. When would you choose one over the other?',
+    context: 'Evaluates database query optimization, internal indexing structures, and range scan performance.',
+    sampleAnswer: 'B-Tree indexes maintain a balanced tree structure supporting both point lookups (O(log N)) and range queries (e.g., BETWEEN, <, >) through ordered leaf nodes. Hash indexes provide O(1) point lookups based on an exact hash match but cannot perform range scans or prefix queries. In production, B-Trees are the default choice for general columns, while Hash indexes are reserved for strictly exact-match equality lookups.',
+    keyTopics: ['B-Tree Structure', 'Hash Index O(1)', 'Range Queries', 'Index Optimization']
+  },
+  {
+    id: 'q_hr_1',
+    type: 'HR',
+    question: 'Why do you want to join our company as a Junior Engineer, and where do you see your career heading in 3 years?',
+    context: 'Assesses culture fit, candidate motivation, self-awareness, and alignment with company growth trajectories.',
+    sampleAnswer: 'I admire your company\'s commitment to engineering excellence and scalable infrastructure. In my projects, I love building reliable backend systems and solving complex bottlenecks. In the next 3 years, my goal is to transition from an eager learner to a core contributor who champions clean code, mentors incoming interns, and takes ownership of critical services.',
+    keyTopics: ['Company Alignment', 'Growth Mindset', 'Long-term Commitment', 'Continuous Learning']
+  },
+  {
+    id: 'q_hr_2',
+    type: 'HR',
+    question: 'How do you prioritize your time when balancing multiple urgent academic deadlines and technical interview preparation?',
+    context: 'Tests time management, prioritization frameworks, stress management, and practical work habits.',
+    sampleAnswer: 'I use the Eisenhower matrix to divide responsibilities into urgent vs important. I block 90 minutes each morning for deep-focus coding and interview problem-solving when my concentration is highest. For academic deliverables, I break projects into milestone sprints early, which prevents last-minute scrambles.',
+    keyTopics: ['Time Management', 'Prioritization Matrix', 'Consistency', 'Stress Handling']
+  },
+  {
+    id: 'q_beh_1',
+    type: 'Behavioral',
+    question: 'Tell me about a time you faced a difficult technical bug under a tight deadline. How did you diagnose and resolve it?',
+    context: 'Uses STAR framework to assess problem-solving under pressure and systematic root-cause analysis.',
+    sampleAnswer: 'Situation: During a 48-hour hackathon, our API server started throwing 504 Gateway Timeouts right before demo submissions. Task: I needed to diagnose whether the root cause was database lock contention, memory leak, or unhandled network promise. Action: I used Chrome DevTools and server logs to isolate the slow endpoint, identifying an unindexed N+1 query loop. I converted it into a single SQL JOIN with Redis caching. Result: Response times dropped from 4.2s to 38ms, and our team successfully delivered the demo to win 2nd place.',
+    keyTopics: ['STAR Framework', 'Root Cause Diagnostics', 'Pressure Handling', 'Measurable Impact']
+  },
+  {
+    id: 'q_beh_2',
+    type: 'Behavioral',
+    question: 'Describe a situation where you had a disagreement with a peer on technical architecture. How did you handle it?',
+    context: 'Evaluates emotional intelligence, communication skills, objective decision making, and teamwork.',
+    sampleAnswer: 'Situation: In a group project, a teammate wanted to use MongoDB while I advocated for PostgreSQL. Task: We needed to decide quickly without causing team friction. Action: Instead of arguing preferences, I created a short matrix comparing our data schema needs—highlighting that our application had relational user transactions requiring ACID compliance. We reviewed it together, and my teammate agreed that PostgreSQL was the safer choice. Result: The database ran smoothly without any schema anomalies.',
+    keyTopics: ['Constructive Debate', 'Objective Decision Matrix', 'Collaboration', 'Empathy']
+  }
+];
+
+const DEFAULT_PLANNER_TASKS: LearningTask[] = [
+  { id: 'pt1', title: 'Solve 2 LeetCode Mediums on Graphs (BFS/DFS)', category: 'Daily', priority: 'High', completed: true, dueDate: 'Today' },
+  { id: 'pt2', title: 'Containerize FastAPI ML inference script with Docker', category: 'Daily', priority: 'High', completed: false, dueDate: 'Today' },
+  { id: 'pt3', title: 'Review PyTorch Autograd & Backprop derivations', category: 'Revision', priority: 'Medium', completed: false, dueDate: 'Tomorrow' },
+  { id: 'pt4', title: 'Complete CareerPilot AI Mock Interview Round #1', category: 'Weekly', priority: 'High', completed: false, dueDate: 'This Weekend' },
+  { id: 'pt5', title: 'Optimize Resume bullet points with quantified metrics', category: 'Project', priority: 'Medium', completed: true, dueDate: 'Completed' }
+];
+
+const DEFAULT_BADGES: AchievementBadge[] = [
+  { id: 'b1', name: 'Profile Pioneer', icon: '👤', description: 'Setup initial candidate career profile', unlocked: true },
+  { id: 'b2', name: '7-Day Streak', icon: '🔥', description: 'Maintained 7 consecutive days of career prep', unlocked: true },
+  { id: 'b3', name: 'ATS Optimizer', icon: '📄', description: 'Analyzed resume and fixed weak bullets', unlocked: true },
+  { id: 'b4', name: 'PyTorch Explorer', icon: '🚀', description: 'Completed PyTorch fundamentals phase', unlocked: false },
+  { id: 'b5', name: 'Interview Champion', icon: '🎯', description: 'Cleared 3 full mock interview simulations', unlocked: false },
+  { id: 'b6', name: 'Job Ready 100', icon: '👑', description: 'Attained 85+ Career Readiness Score', unlocked: false }
+];
+
+export const CareerGuidanceApp: React.FC = () => {
+  // Main Navigation Tab
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analyze' | 'roadmap' | 'projects' | 'interview' | 'profile'>('dashboard');
+
+  // Candidate Profile State (with persistence)
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('careerpilot_profile');
+    return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
+  });
+
+  // Stages & Roadmap State
+  const [stages, setStages] = useState<RoadmapStage[]>(() => {
+    const saved = localStorage.getItem('careerpilot_stages');
+    return saved ? JSON.parse(saved) : DEFAULT_STAGES;
+  });
+
+  // Tasks State
+  const [tasks, setTasks] = useState<LearningTask[]>(() => {
+    const saved = localStorage.getItem('careerpilot_tasks');
+    return saved ? JSON.parse(saved) : DEFAULT_PLANNER_TASKS;
+  });
+
+  // Badges State
+  const [badges, setBadges] = useState<AchievementBadge[]>(() => {
+    const saved = localStorage.getItem('careerpilot_badges');
+    return saved ? JSON.parse(saved) : DEFAULT_BADGES;
+  });
+
+  // Theme & System States
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('careerpilot_theme') !== 'light';
+  });
+  const [demoMode, setDemoMode] = useState(true);
+  const [showAiCopilot, setShowAiCopilot] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [profileSavedToast, setProfileSavedToast] = useState(false);
+
+  // Career Analyzer Form State
+  const [analyzerForm, setAnalyzerForm] = useState({
+    name: profile.name,
+    college: profile.college,
+    department: profile.department,
+    year: profile.year,
+    targetRole: profile.targetRole,
+    targetCompany: profile.targetCompany,
+    skills: profile.currentSkills.join(', '),
+    programmingLanguages: profile.programmingLanguages.join(', '),
+    experienceLevel: profile.experienceLevel,
+    interests: profile.interests.join(', ')
+  });
+
+  // Career Analysis Results State
+  const [careerAnalysisResult, setCareerAnalysisResult] = useState<{
+    score: number;
+    fitLevel: string;
+    strengths: string[];
+    skillGaps: string[];
+    recommendedSkills: string[];
+    nextSteps: string[];
+  }>({
+    score: 78,
+    fitLevel: 'Strong Fit',
+    strengths: ['Python OOP & Clean Code', 'Data Structures & Algorithms (Arrays, Graphs)', 'SQL Schema & Query Optimization', 'RESTful API Design with FastAPI'],
+    skillGaps: ['Docker Containerization', 'Production PyTorch Inference', 'Vector Databases (ChromaDB)', 'MLOps & Continuous Drift Monitoring'],
+    recommendedSkills: ['Docker & Multi-stage builds', 'PyTorch & HuggingFace Transformers', 'ChromaDB / FAISS Embeddings', 'System Design for ML Services'],
+    nextSteps: [
+      'Containerize your FastAPI ML sentiment classifier using Docker.',
+      'Solve 25 LeetCode Medium Graph and Tree problems on NeetCode 150.',
+      'Deploy an open-source demo model on Hugging Face Spaces and add to resume.'
+    ]
+  });
+
+  // Project Category Filter State
+  const [projectFilter, setProjectFilter] = useState<'All' | 'Beginner' | 'Intermediate' | 'Advanced'>('All');
+
+  // Interview Category Filter State
+  const [interviewTypeFilter, setInterviewTypeFilter] = useState<'Technical' | 'HR' | 'Behavioral'>('Technical');
+
+  // Resume Analyzer States
+  const [resumeText, setResumeText] = useState(
+    'Alex Chen\nEducation: B.Tech Computer Science (GPA: 3.8/4.0)\nSkills: Python, SQL, Git, HTML/CSS, Basic React, FastAPI, SQLite\nExperience: Built personal portfolio and small Python sentiment classifier with Flask.\nProjects: Task Tracker CLI with JSON storage.'
+  );
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>('alex_chen_resume.pdf');
+  const [atsScore, setAtsScore] = useState<number>(82);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState('');
+
+  // AI Mock Interview States
+  const [mockQuestions, setMockQuestions] = useState<MockQuestion[]>(DEFAULT_QUESTIONS);
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
+  const [candidateAnswer, setCandidateAnswer] = useState('');
+  const [interviewFeedback, setInterviewFeedback] = useState<{
+    score: number;
+    strengths: string;
+    gaps: string;
+    modelAnswer: string;
+  } | null>(null);
+  const [isGrading, setIsGrading] = useState(false);
+
+  // AI Copilot Chat State
+  const [copilotMessages, setCopilotMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string }>>([
+    {
+      sender: 'ai',
+      text: "Greetings Alex! I'm your CareerPilot AI Mentor. I have your profile loaded (Target: ML Engineer @ Google). How can I assist your career progression today?"
+    }
+  ]);
+  const [copilotInput, setCopilotInput] = useState('');
+  const [isCopilotThinking, setIsCopilotThinking] = useState(false);
+
+  // New task input state
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskCategory, setNewTaskCategory] = useState<'Daily' | 'Weekly' | 'Revision' | 'Project'>('Daily');
+
+  // Filtered mock questions based on selected interview category
+  const filteredQuestions = mockQuestions.filter(q => q.type === interviewTypeFilter);
+
+  // Animation trigger for Dashboard readiness score ring and progress bars
+  const [dashboardAnimated, setDashboardAnimated] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      setDashboardAnimated(false);
+      const timer = setTimeout(() => {
+        setDashboardAnimated(true);
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
+
+  // Save to localStorage on state changes
+  useEffect(() => {
+    localStorage.setItem('careerpilot_profile', JSON.stringify(profile));
+  }, [profile]);
+
+  useEffect(() => {
+    localStorage.setItem('careerpilot_stages', JSON.stringify(stages));
+  }, [stages]);
+
+  useEffect(() => {
+    localStorage.setItem('careerpilot_tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('careerpilot_badges', JSON.stringify(badges));
+  }, [badges]);
+
+  useEffect(() => {
+    localStorage.setItem('careerpilot_theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  // Copy helper
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Toggle Task Completion in Roadmap
+  const toggleRoadmapTask = (stageId: string, taskId: string) => {
+    setStages(prev => prev.map(stage => {
+      if (stage.id !== stageId) return stage;
+      return {
+        ...stage,
+        tasks: stage.tasks.map(t => {
+          if (t.id !== taskId) return t;
+          const updated = !t.completed;
+          if (updated) {
+            setProfile(p => ({ ...p, xp: p.xp + 50 }));
+          }
+          return { ...t, completed: updated };
+        })
+      };
+    }));
+  };
+
+  // Save Profile Handler
+  const handleSaveProfile = () => {
+    const updated: UserProfile = {
+      ...profile,
+      name: analyzerForm.name.trim() || profile.name,
+      college: analyzerForm.college.trim() || profile.college,
+      department: analyzerForm.department.trim() || profile.department,
+      year: analyzerForm.year.trim() || profile.year,
+      targetRole: analyzerForm.targetRole.trim() || profile.targetRole,
+      targetCompany: analyzerForm.targetCompany.trim() || profile.targetCompany,
+      currentSkills: analyzerForm.skills.split(',').map(s => s.trim()).filter(Boolean),
+      programmingLanguages: analyzerForm.programmingLanguages.split(',').map(s => s.trim()).filter(Boolean),
+      experienceLevel: analyzerForm.experienceLevel,
+      interests: analyzerForm.interests.split(',').map(s => s.trim()).filter(Boolean)
+    };
+    setProfile(updated);
+    setProfileSavedToast(true);
+    setTimeout(() => setProfileSavedToast(false), 2500);
+  };
+
+  // Run Career Analyzer Handler
+  const handleRunCareerAnalysis = async () => {
+    setIsAnalyzing(true);
+    setAnalysisStatus('Evaluating candidate profile against target role requirements...');
+
+    try {
+      await new Promise(r => setTimeout(r, 600));
+
+      const skillsList = analyzerForm.skills.split(',').map(s => s.trim().toLowerCase());
+      const hasPython = skillsList.some(s => s.includes('python'));
+      const hasDocker = skillsList.some(s => s.includes('docker'));
+      const hasTorch = skillsList.some(s => s.includes('torch') || s.includes('tensor'));
+
+      let calcScore = 75;
+      if (hasPython) calcScore += 5;
+      if (hasDocker) calcScore += 10;
+      if (hasTorch) calcScore += 8;
+      if (calcScore > 95) calcScore = 95;
+
+      setCareerAnalysisResult({
+        score: calcScore,
+        fitLevel: calcScore >= 80 ? 'High Candidate Fit' : 'Moderate Fit',
+        strengths: [
+          `${analyzerForm.programmingLanguages || 'Python, C++'} Language Proficiency`,
+          'Solid Foundational Data Structures & Algorithms',
+          `Strong Domain Alignment for ${analyzerForm.targetRole}`,
+          'Clear Academic & Portfolio Trajectory'
+        ],
+        skillGaps: [
+          'Production Containerization (Docker / Kubernetes)',
+          'High-Throughput Vector Search & Embeddings',
+          'Distributed System Design Principles',
+          'Automated CI/CD Deployment Pipelines'
+        ],
+        recommendedSkills: [
+          'Docker Multi-Stage Containerization',
+          'PyTorch / HuggingFace Model Inference',
+          'ChromaDB Vector Embeddings',
+          'System Design for High-Concurrency Services'
+        ],
+        nextSteps: [
+          `Build and containerize a flagship project tailored for ${analyzerForm.targetCompany}.`,
+          'Complete 3 mock interview simulations in CareerPilot Interview Coach.',
+          `Optimize ATS resume bullet points for ${analyzerForm.targetRole} keywords.`
+        ]
+      });
+
+      // Also update candidate profile with form fields
+      handleSaveProfile();
+      setProfile(p => ({ ...p, xp: p.xp + 100 }));
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Toggle Learning Planner Task
+  const togglePlannerTask = (taskId: string) => {
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      const updated = !t.completed;
+      if (updated) {
+        setProfile(p => ({ ...p, xp: p.xp + 25 }));
+      }
+      return { ...t, completed: updated };
+    }));
+  };
+
+  // Add new planner task
+  const handleAddPlannerTask = () => {
+    if (!newTaskTitle.trim()) return;
+    const newTask: LearningTask = {
+      id: 'task_' + Date.now(),
+      title: newTaskTitle.trim(),
+      category: newTaskCategory,
+      priority: 'High',
+      completed: false,
+      dueDate: 'Today'
+    };
+    setTasks(prev => [newTask, ...prev]);
+    setNewTaskTitle('');
+  };
+
+  // AI Resume & Career Analysis Execution
+  const runFullAiAnalysis = async () => {
+    setIsAnalyzing(true);
+    setAnalysisStatus('Parsing resume and cross-referencing job requirements...');
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || '';
+
+      if (apiKey && !demoMode) {
+        setAnalysisStatus('Evaluating skills with Google Gemini 2.5 Flash...');
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `Candidate Resume:\n${resumeText}\nTarget Role: ${profile.targetRole}\nTarget Company: ${profile.targetCompany}\nCurrent Skills: ${profile.currentSkills.join(', ')}\n\nProvide an evaluation JSON with: {"atsScore": number, "explanation": string, "strongSkills": string[], "missingSkills": string[], "nextAction": string}`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: { responseMimeType: 'application/json' }
+        });
+
+        const parsed = JSON.parse(response.text || '{}');
+        if (parsed.atsScore) setAtsScore(parsed.atsScore);
+      } else {
+        // High quality deterministic simulated analysis
+        await new Promise(r => setTimeout(r, 800));
+        setAtsScore(84);
+      }
+
+      setAnalysisStatus('Analysis successfully synchronized!');
+      setProfile(prev => ({
+        ...prev,
+        xp: prev.xp + 100
+      }));
+    } catch (err) {
+      console.warn('AI analysis fallback triggered:', err);
+      setAtsScore(80);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Submit Answer to Mock Interview Simulator
+  const handleGradeInterviewAnswer = async () => {
+    if (!candidateAnswer.trim()) return;
+    setIsGrading(true);
+
+    try {
+      await new Promise(r => setTimeout(r, 700));
+      const activeQ = mockQuestions[activeQuestionIdx];
+      
+      setInterviewFeedback({
+        score: 8.5,
+        strengths: 'Clear explanation of core principles with strong terminology alignment. Demonstrated understanding of architectural boundaries.',
+        gaps: `Consider mentioning edge-case latency degradation under P99 load and memory footprint trade-offs for ${activeQ.keyTopics[0]}.`,
+        modelAnswer: activeQ.sampleAnswer
+      });
+
+      setProfile(p => ({ ...p, xp: p.xp + 75 }));
+    } finally {
+      setIsGrading(false);
+    }
+  };
+
+  // Send message to AI Copilot
+  const handleSendCopilot = async (textToSend?: string) => {
+    const query = textToSend || copilotInput;
+    if (!query.trim()) return;
+
+    const userMsg = { sender: 'user' as const, text: query };
+    setCopilotMessages(prev => [...prev, userMsg]);
+    setCopilotInput('');
+    setIsCopilotThinking(true);
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || '';
+      let reply = '';
+
+      if (apiKey && !demoMode) {
+        const ai = new GoogleGenAI({ apiKey });
+        const context = `You are CareerPilot AI, a personalized career advisor for ${profile.name}.
+Target Role: ${profile.targetRole} @ ${profile.targetCompany}
+Current Skills: ${profile.currentSkills.join(', ')}
+Experience: ${profile.experienceLevel}
+Answer concisely in 2-3 structured sentences with actionable bullet points.`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `${context}\n\nUser Question: ${query}`
+        });
+        reply = response.text || 'I have analyzed your request based on your career trajectory.';
+      } else {
+        await new Promise(r => setTimeout(r, 600));
+        if (query.toLowerCase().includes('learn next') || query.toLowerCase().includes('skill')) {
+          reply = `Based on your target of **${profile.targetRole} at ${profile.targetCompany}**, your highest-yield priority is **PyTorch tensor operations** and **Docker containerization**. Mastering these two closes 75% of your current gap!`;
+        } else if (query.toLowerCase().includes('resume')) {
+          reply = `Your resume has strong foundations, but needs **quantified metrics**. Replace passive phrasing like "Built a model" with "Engineered a PyTorch classifier attaining 94.2% test accuracy with 35% latency reduction via ONNX."`;
+        } else if (query.toLowerCase().includes('project')) {
+          reply = `I recommend building the **AI Resume ATS Matcher with ChromaDB & FastAPI**. It directly showcases deep learning inference, vector embeddings, and containerized backend deployment.`;
+        } else {
+          reply = `With your solid Python baseline and 7-day prep streak, focusing on **Stage 3 & 4 of your Roadmap** will position you as a top 10% candidate for ${profile.targetRole} internships!`;
+        }
+      }
+
+      setCopilotMessages(prev => [...prev, { sender: 'ai', text: reply }]);
+    } catch (err) {
+      setCopilotMessages(prev => [
+        ...prev, 
+        { sender: 'ai', text: `Prioritize Stage 3 of your roadmap: PyTorch foundations and containerizing your FastAPI endpoints with Docker.` }
+      ]);
+    } finally {
+      setIsCopilotThinking(false);
+    }
+  };
+
+  // Calculate Global Roadmap Progress
+  const totalRoadmapTasks = stages.reduce((acc, s) => acc + s.tasks.length, 0);
+  const completedRoadmapTasks = stages.reduce((acc, s) => acc + s.tasks.filter(t => t.completed).length, 0);
+  const roadmapPercent = Math.round((completedRoadmapTasks / (totalRoadmapTasks || 1)) * 100);
+
+  // Overall Career Readiness Score Breakdown
+  const readinessOverall = 78;
+
+  return (
+    <div className={`h-full flex flex-col ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} overflow-hidden font-sans select-none transition-colors duration-200`}>
+      
+      {/* Top Android App Header */}
+      <header className={`${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'} backdrop-blur border-b px-3.5 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-sm`}>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+            <Compass className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs font-black tracking-tight text-white flex items-center gap-1">
+                CareerPilot <span className="text-indigo-400">AI</span>
+              </h1>
+              <span className="text-[9px] bg-indigo-500/20 text-indigo-300 font-mono px-1.5 py-0.2 rounded-full font-bold">
+                v2.5
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium">Neural Career Intelligence</p>
+          </div>
+        </div>
+
+        {/* Quick Top Controls */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={`p-1.5 rounded-lg border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
+            title="Toggle Light/Dark Theme"
+          >
+            {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            onClick={() => setDemoMode(!demoMode)}
+            className={`text-[9px] font-bold px-2 py-1 rounded-lg border transition flex items-center gap-1 ${
+              demoMode 
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+            }`}
+          >
+            <Zap className="w-2.5 h-2.5 text-amber-300" />
+            {demoMode ? 'Demo' : 'Live API'}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Scrollable Body */}
+      <main className="flex-1 overflow-y-auto p-3.5 space-y-3.5 scrollbar-thin scrollbar-thumb-slate-800">
+        
+        {/* ==================================================== */}
+        {/* 1. DASHBOARD VIEW */}
+        {/* ==================================================== */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-3.5 animate-in fade-in duration-150">
+            
+            {/* Personalized Greeting Card */}
+            <div className="bg-gradient-to-r from-indigo-900/60 via-purple-900/50 to-slate-900 border border-indigo-500/30 p-3.5 rounded-2xl shadow-lg relative overflow-hidden">
+              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none"></div>
+              
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-indigo-300 font-semibold mb-0.5">
+                    <span>👋 Welcome back,</span>
+                    <span className="text-white font-bold">{profile.name}</span>
+                  </div>
+                  <h2 className="text-sm font-extrabold text-white">
+                    Target: <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-cyan-300">{profile.targetRole}</span>
+                  </h2>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Aiming for <strong className="text-white">{profile.targetCompany}</strong> &bull; {profile.department}
+                  </p>
+                </div>
+
+                {/* Learning Streak & XP */}
+                <div className="flex flex-col items-end gap-1">
+                  <span className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                    <Flame className="w-3 h-3 fill-amber-400 text-amber-400 animate-bounce" /> {profile.streak} Days
+                  </span>
+                  <span className="text-[10px] font-mono text-indigo-300 font-bold">
+                    ⚡ {profile.xp} XP
+                  </span>
+                </div>
+              </div>
+
+              {/* Recommended Next Action Banner */}
+              <div className="mt-3 pt-2.5 border-t border-indigo-500/20 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-500/30 text-indigo-300 flex items-center justify-center shrink-0">
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-300" />
+                  </div>
+                  <p className="text-[11px] text-slate-200 truncate">
+                    <strong>Next Action:</strong> Containerize PyTorch model in Docker
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('roadmap')}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-0.5 transition"
+                >
+                  Resume <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* 4-Pillar Career Readiness Score Card with Framer Motion SVG Ring & Sequentially Staggered Pillar Progress Bars */}
+            <div className={`${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border p-3.5 rounded-2xl shadow-md space-y-3 relative overflow-hidden`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">
+                    Telemetry Engine
+                  </span>
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Career Readiness Evaluation
+                  </h3>
+                </div>
+                <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                  Top 12% Candidate
+                </span>
+              </div>
+
+              {/* Score Circular Ring + Diagnostic Rationale */}
+              <div className="flex items-center gap-3.5 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+                {/* Framer Motion Radial SVG Progress Ring */}
+                <AnimatedReadinessRing
+                  score={readinessOverall}
+                  maxScore={100}
+                  isDarkMode={isDarkMode}
+                  duration={1.1}
+                />
+
+                {/* Right Summary Info */}
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">Candidate Diagnostic</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400">High Fit</span>
+                  </div>
+                  {/* Framer Motion Horizontal Overall Bar */}
+                  <AnimatedProgressBar
+                    percentage={readinessOverall}
+                    duration={1.1}
+                    heightClass="h-2"
+                  />
+                  <p className="text-[10px] text-slate-300 leading-tight">
+                    Strong foundational algorithms and SQL alignment. Closing Docker & PyTorch containerization gaps unlocks 95+ score.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4 Pillars Breakdown with Staggered Sequential Progress Bars (Starting after Ring Completes at 1.1s) */}
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
+                {/* Pillar 1: Skills (Delay 1.15s) */}
+                <motion.div 
+                  initial={{ opacity: 0.6, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ delay: 1.15, duration: 0.35 }}
+                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-400 font-mono font-semibold">SKILLS</span>
+                    <span className="font-bold text-emerald-400 font-mono">
+                      <AnimatedScoreCounter value={85} duration={0.6} delay={1.15} />%
+                    </span>
+                  </div>
+                  <AnimatedProgressBar
+                    percentage={85}
+                    colorClass="bg-emerald-500"
+                    duration={0.6}
+                    delay={1.15}
+                  />
+                </motion.div>
+
+                {/* Pillar 2: Projects (Delay 1.45s) */}
+                <motion.div 
+                  initial={{ opacity: 0.6, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ delay: 1.45, duration: 0.35 }}
+                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-400 font-mono font-semibold">PROJECTS</span>
+                    <span className="font-bold text-amber-400 font-mono">
+                      <AnimatedScoreCounter value={70} duration={0.6} delay={1.45} />%
+                    </span>
+                  </div>
+                  <AnimatedProgressBar
+                    percentage={70}
+                    colorClass="bg-amber-500"
+                    duration={0.6}
+                    delay={1.45}
+                  />
+                </motion.div>
+
+                {/* Pillar 3: Resume (Delay 1.75s) */}
+                <motion.div 
+                  initial={{ opacity: 0.6, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ delay: 1.75, duration: 0.35 }}
+                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-400 font-mono font-semibold">RESUME</span>
+                    <span className="font-bold text-indigo-400 font-mono">
+                      <AnimatedScoreCounter value={82} duration={0.6} delay={1.75} />%
+                    </span>
+                  </div>
+                  <AnimatedProgressBar
+                    percentage={82}
+                    colorClass="bg-indigo-500"
+                    duration={0.6}
+                    delay={1.75}
+                  />
+                </motion.div>
+
+                {/* Pillar 4: Interview (Delay 2.05s) */}
+                <motion.div 
+                  initial={{ opacity: 0.6, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ delay: 2.05, duration: 0.35 }}
+                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-400 font-mono font-semibold">INTERVIEW</span>
+                    <span className="font-bold text-cyan-400 font-mono">
+                      <AnimatedScoreCounter value={75} duration={0.6} delay={2.05} />%
+                    </span>
+                  </div>
+                  <AnimatedProgressBar
+                    percentage={75}
+                    colorClass="bg-cyan-500"
+                    duration={0.6}
+                    delay={2.05}
+                  />
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Quick Action Hub */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setActiveTab('analyze')}
+                className="bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3 rounded-2xl text-left flex items-start gap-2.5 group transition active:scale-95"
+              >
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0 border border-indigo-500/30 group-hover:scale-105 transition">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">ATS Resume</h4>
+                  <p className="text-[10px] text-slate-400">Scan & rewrite bullets</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('interview')}
+                className="bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3 rounded-2xl text-left flex items-start gap-2.5 group transition active:scale-95"
+              >
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0 border border-purple-500/30 group-hover:scale-105 transition">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Mock Coach</h4>
+                  <p className="text-[10px] text-slate-400">AI live interview sim</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('roadmap')}
+                className="bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3 rounded-2xl text-left flex items-start gap-2.5 group transition active:scale-95"
+              >
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center shrink-0 border border-cyan-500/30 group-hover:scale-105 transition">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">7-Stage Plan</h4>
+                  <p className="text-[10px] text-slate-400">{roadmapPercent}% completed</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('projects')}
+                className="bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3 rounded-2xl text-left flex items-start gap-2.5 group transition active:scale-95"
+              >
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-500/30 group-hover:scale-105 transition">
+                  <Code className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Projects Hub</h4>
+                  <p className="text-[10px] text-slate-400">Target role blueprints</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Today's Learning Tasks Checklist */}
+            <div className={`${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border p-3.5 rounded-2xl shadow-md space-y-2.5`}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> Today's Priority Missions
+                </h3>
+                <button
+                  onClick={() => setActiveTab('planner')}
+                  className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-0.5"
+                >
+                  View All <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                {tasks.slice(0, 3).map(task => (
+                  <div
+                    key={task.id}
+                    onClick={() => togglePlannerTask(task.id)}
+                    className={`p-2.5 rounded-xl border flex items-center gap-2.5 cursor-pointer transition ${
+                      task.completed 
+                        ? 'bg-slate-950/40 border-slate-800/60 opacity-60' 
+                        : 'bg-slate-950 border-slate-800 hover:border-indigo-500/50'
+                    }`}
+                  >
+                    {task.completed ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-slate-500 shrink-0" />
+                    )}
+                    <span className={`text-xs flex-1 ${task.completed ? 'line-through text-slate-400' : 'text-slate-200'}`}>
+                      {task.title}
+                    </span>
+                    <span className="text-[9px] font-mono text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                      {task.priority}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* 2. ANALYZE & RESUME ATS OPTIMIZER VIEW */}
+        {/* ==================================================== */}
+        {activeTab === 'analyze' && (
+          <div className="space-y-3.5 animate-in fade-in duration-150">
+            
+            {/* Career Analyzer Form Container */}
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <Cpu className="w-4 h-4 text-indigo-400" /> Career Profile Analyzer
+                </span>
+                <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-mono font-bold">
+                  Telemetry Engine
+                </span>
+              </div>
+
+              {/* 10 Required Input Fields */}
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.name}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, name: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. Alex Chen"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">College / University</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.college}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, college: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. National Tech Institute"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Department / Major</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.department}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, department: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. Computer Science"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Graduation Year</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.year}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, year: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. 3rd Year (Class of 2027)"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Target Role</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.targetRole}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, targetRole: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. Machine Learning Engineer"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Target Company</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.targetCompany}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, targetCompany: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. Google, Stripe"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Programming Languages</label>
+                    <input
+                      type="text"
+                      value={analyzerForm.programmingLanguages}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, programmingLanguages: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. Python, C++, SQL, Go"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Experience Level</label>
+                    <select
+                      value={analyzerForm.experienceLevel}
+                      onChange={e => setAnalyzerForm({ ...analyzerForm, experienceLevel: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="Student / Early Career">Student / Early Career</option>
+                      <option value="Entry Level (0-1 Years)">Entry Level (0-1 Years)</option>
+                      <option value="Mid Level (2-4 Years)">Mid Level (2-4 Years)</option>
+                      <option value="Senior Level (5+ Years)">Senior Level (5+ Years)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Current Technical Skills (Comma separated)</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.skills}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, skills: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    placeholder="e.g. Python, SQL, Git, Data Structures, FastAPI, HTML/CSS"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Career Interests & Domains</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.interests}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, interests: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    placeholder="e.g. Machine Learning, Distributed Systems, Cloud Architecture"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                onClick={handleRunCareerAnalysis}
+                disabled={isAnalyzing}
+                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Analyzing Career Profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Run Career & Skill Gap Evaluation</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Analysis Results Display */}
+            <div className="space-y-3">
+              
+              {/* 1. Readiness Score Card */}
+              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2.5 shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase">Diagnosis</span>
+                    <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-emerald-400" /> Career Readiness Score
+                    </h4>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-black text-emerald-400 font-mono">
+                      <AnimatedScoreCounter value={careerAnalysisResult.score} duration={1.2} />/100
+                    </span>
+                    <span className="text-[9px] text-emerald-400 font-semibold block">{careerAnalysisResult.fitLevel}</span>
+                  </div>
+                </div>
+
+                <AnimatedProgressBar
+                  percentage={careerAnalysisResult.score}
+                  duration={1.2}
+                  heightClass="h-2"
+                />
+              </div>
+
+              {/* 2. Strengths & 3. Skill Gaps */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Key Strengths
+                  </span>
+                  <div className="space-y-1">
+                    {careerAnalysisResult.strengths.map((str, idx) => (
+                      <div key={idx} className="text-[11px] text-slate-200 bg-slate-950 p-2 rounded-xl border border-emerald-500/20 flex items-start gap-1.5">
+                        <span className="text-emerald-400 font-bold">✓</span>
+                        <span>{str}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2">
+                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-400" /> Critical Skill Gaps
+                  </span>
+                  <div className="space-y-1">
+                    {careerAnalysisResult.skillGaps.map((gap, idx) => (
+                      <div key={idx} className="text-[11px] text-slate-200 bg-slate-950 p-2 rounded-xl border border-rose-500/20 flex items-start gap-1.5">
+                        <span className="text-rose-400 font-bold">▲</span>
+                        <span>{gap}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Recommended Skills */}
+              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2">
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" /> Recommended Skills to Master
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {careerAnalysisResult.recommendedSkills.map((sk, idx) => (
+                    <span key={idx} className="text-[10px] bg-slate-950 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-xl font-mono">
+                      + {sk}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Recommended Next Steps */}
+              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2">
+                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-indigo-400" /> Recommended Next Action Steps
+                </span>
+                <div className="space-y-1.5">
+                  {careerAnalysisResult.nextSteps.map((step, idx) => (
+                    <div key={idx} className="text-[11px] text-slate-200 bg-slate-950 p-2.5 rounded-xl border border-indigo-500/30 flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* 3. 7-STAGE CAREER ROADMAP VIEW */}
+        {/* ==================================================== */}
+        {activeTab === 'roadmap' && (
+          <div className="space-y-3.5 animate-in fade-in duration-150">
+            
+            {/* Header with Overall Progress */}
+            <div className="bg-gradient-to-r from-indigo-900/60 to-purple-900/50 border border-indigo-500/30 p-3.5 rounded-2xl shadow-md space-y-2">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                    <Compass className="w-4 h-4 text-indigo-400" /> 7-Stage Career Roadmap
+                  </h3>
+                  <p className="text-[10px] text-indigo-200">From CS Student to {profile.targetRole} @ {profile.targetCompany}</p>
+                </div>
+                <span className="text-sm font-black text-cyan-300 font-mono">{roadmapPercent}% Done</span>
+              </div>
+
+              <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-full transition-all duration-500" style={{ width: `${roadmapPercent}%` }}></div>
+              </div>
+            </div>
+
+            {/* Stages Vertical Flow */}
+            <div className="space-y-2.5">
+              {stages.map((stage, idx) => {
+                const stageCompleted = stage.tasks.every(t => t.completed);
+                const stageDoneCount = stage.tasks.filter(t => t.completed).length;
+
+                return (
+                  <div key={stage.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 transition hover:border-slate-700 shadow-sm">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                          stageCompleted 
+                            ? 'bg-emerald-500 text-slate-950 font-black' 
+                            : 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40'
+                        }`}>
+                          {stageCompleted ? '✓' : idx + 1}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white">{stage.title}</h4>
+                          <p className="text-[10px] text-slate-400">{stage.subtitle} &bull; <span className="text-cyan-400">{stage.duration}</span></p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-300 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
+                        {stageDoneCount}/{stage.tasks.length}
+                      </span>
+                    </div>
+
+                    {/* Skill Badges */}
+                    <div className="flex flex-wrap gap-1">
+                      {stage.skills.map(skill => (
+                        <span key={skill} className="text-[9px] bg-slate-950 text-indigo-300 border border-slate-800 px-1.5 py-0.5 rounded font-mono">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Interactive Tasks Checklist */}
+                    <div className="space-y-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                      {stage.tasks.map(task => (
+                        <div
+                          key={task.id}
+                          onClick={() => toggleRoadmapTask(stage.id, task.id)}
+                          className="flex items-center gap-2 cursor-pointer group py-0.5"
+                        >
+                          {task.completed ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          ) : (
+                            <Circle className="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-400 shrink-0" />
+                          )}
+                          <span className={`text-[11px] ${task.completed ? 'line-through text-slate-500' : 'text-slate-300'}`}>
+                            {task.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Stage Project Anchor */}
+                    <div className="text-[10px] text-slate-400 bg-slate-950 p-2 rounded-xl flex items-center gap-1.5 border border-slate-800">
+                      <Code className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span className="truncate"><strong>Capstone:</strong> {stage.project}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* 4. RECOMMENDED PROJECTS HUB */}
+        {/* ==================================================== */}
+        {activeTab === 'projects' && (
+          <div className="space-y-3.5 animate-in fade-in duration-150">
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2.5">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Code className="w-4 h-4 text-emerald-400" /> Recommended Project Blueprints
+                </h3>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded-full font-bold">
+                  {DEFAULT_PROJECT_ITEMS.length} Projects
+                </span>
+              </div>
+              
+              {/* Category Filter Chips */}
+              <div className="flex gap-1.5">
+                {(['All', 'Beginner', 'Intermediate', 'Advanced'] as const).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setProjectFilter(cat)}
+                    className={`px-3 py-1 rounded-xl text-[10px] font-bold transition ${
+                      projectFilter === cat
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {DEFAULT_PROJECT_ITEMS
+                .filter(proj => projectFilter === 'All' || proj.difficulty === projectFilter)
+                .map(proj => (
+                  <div key={proj.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className={`text-[9px] font-bold uppercase font-mono px-2 py-0.5 rounded-full ${
+                          proj.difficulty === 'Advanced' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                          proj.difficulty === 'Intermediate' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                          'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        }`}>
+                          {proj.difficulty} &bull; {proj.duration}
+                        </span>
+                        <h4 className="text-xs font-bold text-white mt-1.5">{proj.title}</h4>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-300 leading-relaxed">{proj.description}</p>
+
+                    {/* Tech Badges */}
+                    <div className="flex flex-wrap gap-1">
+                      {proj.technologies.map(t => (
+                        <span key={t} className="text-[9px] bg-slate-950 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded-md font-mono">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Career Value Card */}
+                    <div className="bg-indigo-950/40 p-2.5 rounded-xl border border-indigo-500/30 space-y-1">
+                      <span className="text-[9px] font-bold text-indigo-300 font-mono flex items-center gap-1">
+                        <Award className="w-3 h-3 text-amber-300" /> CAREER VALUE:
+                      </span>
+                      <p className="text-[11px] text-indigo-100 leading-snug">{proj.careerValue}</p>
+                    </div>
+
+                    {/* Resume Bullet */}
+                    <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-slate-400 font-mono">RESUME BULLET:</span>
+                        <button
+                          onClick={() => handleCopy(proj.id, proj.resumeBullet)}
+                          className="text-[9px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 font-semibold"
+                        >
+                          {copiedId === proj.id ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+                          {copiedId === proj.id ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-200 italic font-mono">"{proj.resumeBullet}"</p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* 5. AI MOCK INTERVIEW SIMULATOR */}
+        {/* ==================================================== */}
+        {activeTab === 'interview' && (
+          <div className="space-y-3.5 animate-in fade-in duration-150">
+            
+            {/* Category Selector */}
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2.5 text-xs shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <MessageSquare className="w-4 h-4 text-purple-400" /> AI Mock Interview Coach
+                </span>
+                <span className="text-[9px] bg-purple-500/20 text-purple-300 font-mono px-2 py-0.5 rounded-full font-bold">
+                  Role: {profile.targetRole}
+                </span>
+              </div>
+
+              {/* 3 Categories: Technical, HR, Behavioral */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['Technical', 'HR', 'Behavioral'] as const).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setInterviewTypeFilter(cat);
+                      setActiveQuestionIdx(0);
+                      setInterviewFeedback(null);
+                      setCandidateAnswer('');
+                    }}
+                    className={`py-1.5 text-[10px] font-bold rounded-xl border transition ${
+                      interviewTypeFilter === cat
+                        ? 'bg-purple-600 border-purple-500 text-white shadow-md'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {cat} Interview
+                  </button>
+                ))}
+              </div>
+
+              {/* Question Number Pills */}
+              <div className="flex gap-1.5 pt-1">
+                {filteredQuestions.map((q, idx) => (
+                  <button
+                    key={q.id}
+                    onClick={() => {
+                      setActiveQuestionIdx(idx);
+                      setInterviewFeedback(null);
+                      setCandidateAnswer('');
+                    }}
+                    className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition ${
+                      activeQuestionIdx === idx
+                        ? 'bg-indigo-600 border-indigo-500 text-white'
+                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    Question {idx + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Question Card */}
+            {filteredQuestions[activeQuestionIdx] && (
+              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-3 shadow-md">
+                <div>
+                  <span className="text-[9px] font-bold text-purple-400 uppercase font-mono tracking-wider">
+                    {filteredQuestions[activeQuestionIdx].type} Interview Round
+                  </span>
+                  <h4 className="text-xs font-bold text-white mt-1 leading-snug">
+                    "{filteredQuestions[activeQuestionIdx].question}"
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-1 bg-slate-950 p-2 rounded-xl border border-slate-800">
+                    💡 <strong>Evaluator Focus:</strong> {filteredQuestions[activeQuestionIdx].context}
+                  </p>
+                </div>
+
+                {/* Candidate Answer Box */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Your Proposed Answer:</label>
+                  <textarea
+                    rows={4}
+                    value={candidateAnswer}
+                    onChange={e => setCandidateAnswer(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-purple-500"
+                    placeholder="Type your response using clear technical details or STAR method..."
+                  />
+                </div>
+
+                {/* Fast Fill Sample Answer Button for Demo */}
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={() => setCandidateAnswer(filteredQuestions[activeQuestionIdx].sampleAnswer)}
+                    className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold underline"
+                  >
+                    Load Benchmark Answer
+                  </button>
+                </div>
+
+                {/* Grade Answer Button */}
+                <button
+                  onClick={handleGradeInterviewAnswer}
+                  disabled={isGrading || !candidateAnswer.trim()}
+                  className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+                >
+                  {isGrading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+                  {isGrading ? 'Evaluating Response...' : 'Submit & Get Assessment'}
+                </button>
+
+                {/* AI Feedback Display */}
+                {interviewFeedback && (
+                  <div className="bg-slate-950 p-3 rounded-xl border border-purple-500/30 space-y-2 mt-2">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                      <span className="text-[10px] font-bold text-white">Evaluation Score:</span>
+                      <span className="text-sm font-extrabold text-emerald-400 font-mono">{interviewFeedback.score}/10</span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-200 space-y-1">
+                      <p><strong>Strengths:</strong> {interviewFeedback.strengths}</p>
+                      <p className="text-amber-300"><strong>Gaps Detected:</strong> {interviewFeedback.gaps}</p>
+                    </div>
+
+                    <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                      <span className="text-[9px] font-bold text-indigo-400 uppercase font-mono block mb-0.5">Benchmark Model Answer:</span>
+                      <p className="text-[10px] text-slate-300 leading-relaxed font-mono">{interviewFeedback.modelAnswer}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* 6. PROFILE & LOCAL STORAGE VIEW */}
+        {/* ==================================================== */}
+        {activeTab === 'profile' && (
+          <div className="space-y-3.5 animate-in fade-in duration-150 text-xs">
+            
+            {/* Toast Feedback */}
+            {profileSavedToast && (
+              <div className="bg-emerald-500 text-slate-950 p-2.5 rounded-xl font-bold text-xs flex items-center justify-between shadow-lg animate-in fade-in">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Profile successfully saved to local device!
+                </span>
+              </div>
+            )}
+
+            {/* Candidate Header Card */}
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-500/20">
+                  {profile.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{profile.name}</h3>
+                  <p className="text-[11px] text-indigo-300">{profile.targetRole} &bull; {profile.targetCompany}</p>
+                  <p className="text-[10px] text-slate-400">{profile.college}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Editing Form */}
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2.5">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                <User className="w-3.5 h-3.5 text-indigo-400" /> Edit Candidate Profile
+              </h4>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-0.5">Name</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.name}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, name: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-0.5">College</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.college}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, college: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-0.5">Department</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.department}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, department: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-0.5">Year</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.year}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, year: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-0.5">Target Role</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.targetRole}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, targetRole: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-0.5">Target Company</label>
+                  <input
+                    type="text"
+                    value={analyzerForm.targetCompany}
+                    onChange={e => setAnalyzerForm({ ...analyzerForm, targetCompany: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 block mb-0.5">Skills</label>
+                <input
+                  type="text"
+                  value={analyzerForm.skills}
+                  onChange={e => setAnalyzerForm({ ...analyzerForm, skills: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                />
+              </div>
+
+              {/* Save Profile Button */}
+              <button
+                onClick={handleSaveProfile}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 transition"
+              >
+                <Check className="w-3.5 h-3.5" /> Save Profile Locally
+              </button>
+            </div>
+
+            {/* Privacy & Clear Data Controls */}
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Privacy & Local Storage
+              </h4>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                All data, skills, roadmap task checkboxes, and profile records are stored completely on-device without external database servers.
+              </p>
+              <button
+                onClick={() => {
+                  if (confirm('Reset profile and clear all cached roadmap progress?')) {
+                    localStorage.clear();
+                    setProfile(DEFAULT_PROFILE);
+                    setStages(DEFAULT_STAGES);
+                    setTasks(DEFAULT_PLANNER_TASKS);
+                    alert('Data wiped and reset to default.');
+                  }
+                }}
+                className="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold py-1.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+              >
+                <Trash2 className="w-3 h-3" /> Reset Local Data
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ==================================================== */}
+      {/* FLOATING AI ASSISTANT (COPILOT MODAL) */}
+      {/* ==================================================== */}
+      {showAiCopilot && (
+        <div className="absolute inset-x-2 bottom-16 top-12 z-40 bg-slate-950/95 backdrop-blur-md rounded-3xl border border-indigo-500/40 p-3.5 flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white">CareerPilot AI Copilot</h3>
+                <p className="text-[9px] text-indigo-300">Contextual to {profile.targetRole}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAiCopilot(false)}
+              className="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-900 rounded-lg border border-slate-800"
+            >
+              Close
+            </button>
+          </div>
+
+          {/* Quick Inquiry Chips */}
+          <div className="flex gap-1 overflow-x-auto pb-1.5 no-scrollbar shrink-0">
+            {[
+              "What should I learn next?",
+              "How to improve my resume?",
+              "Recommend a capstone project",
+              "Am I ready for Google?"
+            ].map(chip => (
+              <button
+                key={chip}
+                onClick={() => handleSendCopilot(chip)}
+                className="text-[9px] bg-slate-900 hover:bg-indigo-950 border border-slate-800 hover:border-indigo-500/50 text-slate-200 px-2 py-1 rounded-full whitespace-nowrap transition shrink-0"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
+          {/* Messages Feed */}
+          <div className="flex-1 overflow-y-auto space-y-2 p-1 text-xs font-sans">
+            {copilotMessages.map((m, idx) => (
+              <div
+                key={idx}
+                className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
+                  m.sender === 'user'
+                    ? 'ml-auto bg-indigo-600 text-white rounded-br-none'
+                    : 'mr-auto bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
+                }`}
+              >
+                {m.text}
+              </div>
+            ))}
+            {isCopilotThinking && (
+              <div className="p-2 rounded-2xl bg-slate-900 border border-slate-800 text-indigo-300 mr-auto flex items-center gap-1.5 text-xs">
+                <RefreshCw className="w-3 h-3 animate-spin" /> Thinking...
+              </div>
+            )}
+          </div>
+
+          {/* Input Box */}
+          <div className="pt-2 flex gap-1.5">
+            <input
+              type="text"
+              value={copilotInput}
+              onChange={e => setCopilotInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendCopilot()}
+              placeholder="Ask career question..."
+              className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              onClick={() => handleSendCopilot()}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-xl shrink-0"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating AI Copilot Trigger Button */}
+      <button
+        onClick={() => setShowAiCopilot(!showAiCopilot)}
+        className="absolute right-4 bottom-14 z-30 w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-xl shadow-indigo-600/40 border border-white/20 flex items-center justify-center hover:scale-105 active:scale-95 transition"
+        title="Open AI Career Copilot"
+      >
+        <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+      </button>
+
+      {/* ==================================================== */}
+      {/* BOTTOM ANDROID NAVIGATION BAR */}
+      {/* ==================================================== */}
+      <nav className={`${isDarkMode ? 'bg-slate-950 border-slate-800/80' : 'bg-white border-slate-200'} border-t px-2 py-1.5 flex justify-around items-center shrink-0 z-20`}>
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition ${
+            activeTab === 'dashboard' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Compass className="w-4 h-4" />
+          <span className="text-[9px]">Home</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('analyze')}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition ${
+            activeTab === 'analyze' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span className="text-[9px]">Analyze</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('roadmap')}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition ${
+            activeTab === 'roadmap' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span className="text-[9px]">Roadmap</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('interview')}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition ${
+            activeTab === 'interview' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span className="text-[9px]">Interview</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition ${
+            activeTab === 'profile' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <User className="w-4 h-4" />
+          <span className="text-[9px]">Profile</span>
+        </button>
+      </nav>
+    </div>
+  );
+};
