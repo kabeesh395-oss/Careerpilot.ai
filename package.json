@@ -8,9 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit",
-    "cap:sync": "npx cap sync android",
-    "build:android": "npm run build && npx cap sync android"
+    "lint": "tsc --noEmit"
   },
   "optionalDependencies": {
     "@rollup/rollup-darwin-arm64": "^4.34.8",

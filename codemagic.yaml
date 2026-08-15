@@ -1,29 +1,18 @@
 workflows:
   native-android:
-    name: CareerPilot AI Android Build
+    name: CareerPilot AI Native Android Build
     instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
-      node: 20
       java: 17
       vars:
         PACKAGE_NAME: "com.careerpilot.ai"
     scripts:
-      - name: Install dependencies
-        script: |
-          npm install --include=optional
-          npm install --no-save @rollup/rollup-darwin-arm64
-      - name: Build Web Application
-        script: |
-          npm run build
-      - name: Sync Capacitor Android
-        script: |
-          npx cap sync android
-      - name: Build Android APK (Gradle)
+      - name: Build Native Android APK (Gradle)
         script: |
           chmod +x ./gradlew ./android/gradlew
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
     artifacts:
       - android/app/build/outputs/apk/**/*.apk
       - app/build/outputs/apk/**/*.apk
