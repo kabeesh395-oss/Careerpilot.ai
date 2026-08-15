@@ -7,12 +7,32 @@ workflows:
       java: 17
       vars:
         PACKAGE_NAME: "com.careerpilot.ai"
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8"
     scripts:
+      - name: Verify and Repair Gradle Wrapper
+        script: |
+          set -e
+          echo "Checking Gradle wrapper integrity..."
+          cd android
+          mkdir -p gradle/wrapper
+          
+          # Check if gradle-wrapper.jar is missing or corrupted
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || ! unzip -t gradle/wrapper/gradle-wrapper.jar >/dev/null 2>&1; then
+            echo "Repairing gradle-wrapper.jar..."
+            rm -f gradle/wrapper/gradle-wrapper.jar
+            curl -fSL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.14.3/gradle/wrapper/gradle-wrapper.jar || \
+            curl -fSL -o gradle/wrapper/gradle-wrapper.jar https://repo.gradle.org/artifactory/libs-releases/org/gradle/gradle-wrapper/8.14.3/gradle-wrapper-8.14.3.jar
+          fi
+          
+          chmod +x ./gradlew
+          echo "Gradle wrapper is valid and ready."
+
       - name: Build Native Android APK (Gradle)
         script: |
-          chmod +x ./gradlew ./android/gradlew
+          set -e
           cd android
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
     artifacts:
       - android/app/build/outputs/apk/**/*.apk
       - app/build/outputs/apk/**/*.apk
+      - android/app/build/outputs/mapping/**/*.txt

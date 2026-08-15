@@ -1,0 +1,12 @@
+# Ensure git treats jar, apk, zip and other binary files as binary without CRLF/LF modification
+*.jar binary
+*.aar binary
+*.so binary
+*.apk binary
+*.aab binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.keystore binary
+*.jks binary
