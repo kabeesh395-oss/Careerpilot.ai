@@ -1,157 +1,17 @@
 workflows:
-  android-expo-app:
-    name: CareerPilot Android APK
+  native-android:
+    name: CareerPilot AI Native Build
     instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
-      node: 20
+      vars:
+        PACKAGE_NAME: "com.careerpilot.ai"
     scripts:
-      - name: Setup CareerPilot AI Android App
+      - name: Build Android APK (Gradle)
         script: |
-          npx create-expo-app@latest CareerPilotAI --template blank
-          cd CareerPilotAI
-          npx expo install react-native-webview
-          
-          # Configure app.json for clean branding, package com.careerpilot.ai, and orientation
-          cat << 'EOF' > app.json
-          {
-            "expo": {
-              "name": "CareerPilot AI",
-              "slug": "careerpilot-ai",
-              "version": "1.0.0",
-              "orientation": "portrait",
-              "icon": "./assets/icon.png",
-              "userInterfaceStyle": "dark",
-              "splash": {
-                "image": "./assets/splash-icon.png",
-                "resizeMode": "contain",
-                "backgroundColor": "#020107"
-              },
-              "android": {
-                "adaptiveIcon": {
-                  "foregroundImage": "./assets/adaptive-icon.png",
-                  "backgroundColor": "#020107"
-                },
-                "package": "com.careerpilot.ai",
-                "versionCode": 1
-              }
-            }
-          }
-          EOF
-
-          # Create App.js with resilient WebView loading and diagnostics
-          cat << 'EOF' > App.js
-          import React, { useState } from 'react';
-          import { SafeAreaView, StatusBar, StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
-          import { WebView } from 'react-native-webview';
-
-          export default function App() {
-            const [key, setKey] = useState(1);
-            const targetUrl = 'https://kabeesh395-oss.github.io/Careerpilot.ai/';
-
-            return (
-              <SafeAreaView style={styles.container}>
-                <StatusBar backgroundColor="#020107" barStyle="light-content" />
-                <WebView 
-                  key={key}
-                  source={{ uri: targetUrl }} 
-                  style={styles.webview}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  allowFileAccess={true}
-                  allowUniversalAccessFromFileURLs={true}
-                  mixedContentMode="always"
-                  startInLoadingState={true}
-                  bounces={false}
-                  overScrollMode="never"
-                  renderLoading={() => (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="large" color="#6366f1" />
-                      <Text style={styles.loadingText}>CAREERPILOT AI</Text>
-                      <Text style={styles.loadingSubtext}>Initializing Neural Career Engine...</Text>
-                    </View>
-                  )}
-                  renderError={(errorDomain, errorCode, errorDesc) => (
-                    <View style={styles.errorContainer}>
-                      <Text style={styles.errorTitle}>CareerPilot AI Offline / Telemetry Mode</Text>
-                      <Text style={styles.errorDesc}>{errorDesc || 'Unable to establish live connection.'}</Text>
-                      <TouchableOpacity style={styles.retryButton} onPress={() => setKey(k => k + 1)}>
-                        <Text style={styles.retryText}>Retry Connection</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                />
-              </SafeAreaView>
-            );
-          }
-
-          const styles = StyleSheet.create({
-            container: { flex: 1, backgroundColor: '#020107' },
-            webview: { flex: 1, backgroundColor: '#020107' },
-            loadingContainer: {
-              ...StyleSheet.absoluteFillObject,
-              backgroundColor: '#020107',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 10
-            },
-            loadingText: {
-              color: '#818cf8',
-              fontSize: 16,
-              fontWeight: '900',
-              marginTop: 16,
-              letterSpacing: 2
-            },
-            loadingSubtext: {
-              color: '#64748b',
-              fontSize: 12,
-              marginTop: 6
-            },
-            errorContainer: {
-              ...StyleSheet.absoluteFillObject,
-              backgroundColor: '#020107',
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: 24,
-              zIndex: 10
-            },
-            errorTitle: {
-              color: '#f87171',
-              fontSize: 16,
-              fontWeight: 'bold',
-              marginBottom: 8,
-              textAlign: 'center'
-            },
-            errorDesc: {
-              color: '#94a3b8',
-              fontSize: 13,
-              textAlign: 'center',
-              marginBottom: 16
-            },
-            retryButton: {
-              backgroundColor: '#6366f1',
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-              borderRadius: 12
-            },
-            retryText: {
-              color: '#ffffff',
-              fontSize: 13,
-              fontWeight: 'bold'
-            }
-          });
-          EOF
-
-      - name: Generate Android Native Project
-        script: |
-          cd CareerPilotAI
-          npx expo prebuild --platform android --clean
-
-      - name: Compile Android APK
-        script: |
-          cd CareerPilotAI/android
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
-
+          # Ensure gradlew is executable
+          chmod +x ./gradlew
+          # Build the debug APK using Gradle
+          ./gradlew assembleDebug
     artifacts:
-      - CareerPilotAI/android/app/build/outputs/apk/release/*.apk
+      - app/build/outputs/apk/debug/*.apk
