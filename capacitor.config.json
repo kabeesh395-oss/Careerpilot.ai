@@ -1,0 +1,6 @@
+{
+  "appId": "com.careerpilot.ai",
+  "appName": "CareerPilot AI",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

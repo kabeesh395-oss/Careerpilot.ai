@@ -1,17 +1,28 @@
 workflows:
   native-android:
-    name: CareerPilot AI Native Build
+    name: CareerPilot AI Android Build
     instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
+      node: 20
+      java: 17
       vars:
         PACKAGE_NAME: "com.careerpilot.ai"
     scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Build Web Application
+        script: |
+          npm run build
+      - name: Sync Capacitor Android
+        script: |
+          npx cap sync android
       - name: Build Android APK (Gradle)
         script: |
-          # Ensure gradlew is executable
-          chmod +x ./gradlew
-          # Build the debug APK using Gradle
+          chmod +x ./gradlew ./android/gradlew
+          cd android
           ./gradlew assembleDebug
     artifacts:
-      - app/build/outputs/apk/debug/*.apk
+      - android/app/build/outputs/apk/**/*.apk
+      - app/build/outputs/apk/**/*.apk
