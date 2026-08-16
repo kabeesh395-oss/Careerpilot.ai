@@ -150,3 +150,10 @@ data class ATSResumeAnalysis(
     val strongBullets: List<String>,
     val weakBulletsToImprove: List<Pair<String, String>>
 )
+
+data class SampleJobDescription(
+    val id: String,
+    val company: String,
+    val role: String,
+    val text: String
+)

@@ -258,4 +258,25 @@ object CareerData {
             "Designed normalized PostgreSQL schemas and indexed queries, eliminating N+1 bottlenecks and handling 450 concurrent connections."
         )
     )
+
+    val SAMPLE_JOB_DESCRIPTIONS = listOf(
+        SampleJobDescription(
+            id = "sample_1",
+            company = "DeepMind",
+            role = "ML Engineer",
+            text = "Requirements: Strong proficiency in Python 3.x, PyTorch tensor manipulation, and deep learning architectures (Transformers, CNNs). Experience deploying models with FastAPI and Docker. Solid foundations in Data Structures, Algorithms, and vector search embeddings (ChromaDB / Faiss)."
+        ),
+        SampleJobDescription(
+            id = "sample_2",
+            company = "Stripe",
+            role = "Backend Systems",
+            text = "Requirements: High proficiency in Python / Go / Java. Deep knowledge of PostgreSQL, Redis caching, message queues, and high-concurrency RESTful microservices. Experience with Docker containerization, rate limiting, and system design."
+        ),
+        SampleJobDescription(
+            id = "sample_3",
+            company = "Anthropic",
+            role = "Applied AI Fellow",
+            text = "Requirements: Experience fine-tuning LLMs, prompt engineering, RAG pipelines, FastAPI services, PyTorch, and evaluating benchmark outputs. Strong algorithmic problem solving and clean coding standards."
+        )
+    )
 }
