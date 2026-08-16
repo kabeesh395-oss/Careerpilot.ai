@@ -8,9 +8,10 @@ import {
   ShieldCheck, Trash2, User, Briefcase, 
   Target, CheckSquare, Zap, Flame,
   MessageSquare, Copy, Check, BarChart3, Sun, Moon,
-  ChevronRight, FileSearch, Bookmark, Plus, X, Lock, Download
+  ChevronRight, FileSearch, Bookmark, Plus, X, Lock, Download, Key
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
+import { AIService, CareerAnalysisResponse } from '../../services/aiService';
 
 // Career Modules
 import { 
@@ -439,6 +440,56 @@ export const CareerGuidanceApp: React.FC = () => {
   );
   const [atsScore, setAtsScore] = useState<number>(82);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [realAnalysisResult, setRealAnalysisResult] = useState<CareerAnalysisResponse | null>(null);
+
+  // Gemini API Key & Online state
+  const [apiKeyInput, setApiKeyInput] = useState(() => AIService.getApiKey());
+  const [isApiKeySaved, setIsApiKeySaved] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => AIService.isConfigured());
+
+  // Save API Key Handler
+  const handleSaveApiKey = () => {
+    AIService.setApiKey(apiKeyInput);
+    const configured = AIService.isConfigured();
+    setIsOnline(configured);
+    setDemoMode(!configured);
+    setIsApiKeySaved(true);
+    setTimeout(() => setIsApiKeySaved(false), 2500);
+  };
+
+  // Real AI Resume Analysis Handler
+  const handleRunAiResumeAnalysis = async () => {
+    if (!resumeText.trim()) return;
+    setIsAnalyzing(true);
+    try {
+      const result = await AIService.analyze({
+        role: profile.targetRole,
+        resumeText: resumeText
+      });
+      setRealAnalysisResult(result);
+      setAtsScore(result.readiness_score);
+
+      // Dynamically update user profile pillars
+      setPillars(prev => ({
+        ...prev,
+        resume: result.readiness_score,
+        skills: Math.min(100, Math.max(35, Math.round(result.readiness_score * 0.9 + result.strengths.length * 2)))
+      }));
+
+      // Enrich profile skills with newly extracted strengths
+      if (result.strengths && result.strengths.length > 0) {
+        setProfile(p => ({
+          ...p,
+          xp: p.xp + 120,
+          currentSkills: Array.from(new Set([...p.currentSkills, ...result.strengths]))
+        }));
+      }
+    } catch (err) {
+      console.error('Error running AI Resume Analysis:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   // AI Mock Interview States
   const [mockQuestions] = useState<MockQuestion[]>(DEFAULT_QUESTIONS);
@@ -580,9 +631,9 @@ export const CareerGuidanceApp: React.FC = () => {
 
     try {
       const activeQ = filteredQuestions[activeQuestionIdx];
-      const apiKey = process.env.GEMINI_API_KEY || '';
+      const apiKey = AIService.getApiKey();
 
-      if (apiKey && !demoMode) {
+      if (apiKey) {
         const ai = new GoogleGenAI({ apiKey });
         const prompt = `You are CareerCoach AI.
 Target Role: ${profile.targetRole}
@@ -673,10 +724,10 @@ Provide JSON:
     setIsCopilotThinking(true);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY || '';
+      const apiKey = AIService.getApiKey();
       let reply = '';
 
-      if (apiKey && !demoMode) {
+      if (apiKey) {
         const ai = new GoogleGenAI({ apiKey });
         const context = `You are CareerPilot AI, a personalized career advisor for ${profile.name}.
 Target Role: ${profile.targetRole} @ ${profile.targetCompany}
@@ -1137,37 +1188,149 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
               <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs shadow-md">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <div>
-                    <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">ATS Engine</span>
+                    <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">ATS AI Engine</span>
                     <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-indigo-400" /> ATS Resume Compatibility
+                      <FileText className="w-4 h-4 text-indigo-400" /> ATS Resume Compatibility Scanner
                     </h4>
                   </div>
                   <div className="text-right">
                     <span className="text-base font-black text-indigo-400 font-mono">{atsScore}/100</span>
-                    <span className="text-[8px] text-slate-400 block">Parsing Score</span>
+                    <span className="text-[8px] text-slate-400 block">Readiness Score</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-bold text-slate-400 block mb-1">Resume Plaintext for Keyword Parsing:</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[9px] font-bold text-slate-400">Pasted Resume Text for Real Parsing:</label>
+                    <span className="text-[9px] text-indigo-400 font-mono">Role: {profile.targetRole}</span>
+                  </div>
                   <textarea
-                    rows={6}
+                    rows={5}
                     value={resumeText}
                     onChange={e => setResumeText(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 leading-relaxed font-mono"
+                    placeholder="Paste your real resume text here..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 leading-relaxed font-mono focus:outline-none focus:border-indigo-500"
                   />
                 </div>
 
-                <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-                  <span className="text-[10px] font-bold text-emerald-400 font-mono">DETECTED ATS STRENGTHS:</span>
-                  <p className="text-[10px] text-slate-300">
-                    • Clear Python and SQL keywords &bull; Good formatting without complex tables
-                  </p>
-                  <span className="text-[10px] font-bold text-amber-400 font-mono block pt-1">MISSING FROM RESUME:</span>
-                  <p className="text-[10px] text-slate-300">
-                    • Quantified latency metrics &bull; Docker containerization &bull; Cloud deployment keywords
-                  </p>
-                </div>
+                {/* Primary AI Trigger Button */}
+                <button
+                  onClick={handleRunAiResumeAnalysis}
+                  disabled={isAnalyzing || !resumeText.trim()}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95 disabled:opacity-50"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Analyzing Resume with Gemini AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Run Live AI Resume Analysis</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Dynamic Analysis Results */}
+                {realAnalysisResult ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2.5 pt-1"
+                  >
+                    {/* Strengths & Gaps Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/30 space-y-1.5">
+                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Detected Strengths ({realAnalysisResult.strengths.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {realAnalysisResult.strengths.map((str, i) => (
+                            <span key={i} className="text-[9px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">
+                              ✓ {str}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-rose-500/30 space-y-1.5">
+                        <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> Skill Gaps ({realAnalysisResult.skill_gaps.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {realAnalysisResult.skill_gaps.map((gap, i) => (
+                            <span key={i} className="text-[9px] bg-rose-950/60 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 rounded font-mono">
+                              ▲ {gap}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recommended Skills */}
+                    {realAnalysisResult.recommended_skills?.length > 0 && (
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-indigo-300 font-mono">
+                          RECOMMENDED SKILLS TO BRIDGE GAPS:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {realAnalysisResult.recommended_skills.map((rec, i) => (
+                            <span key={i} className="text-[9px] bg-indigo-950/50 text-indigo-200 border border-indigo-500/30 px-2 py-0.5 rounded-md font-mono">
+                              + {rec}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Steps */}
+                    {realAnalysisResult.next_steps?.length > 0 && (
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-amber-400 font-mono">ACTIONABLE NEXT STEPS:</span>
+                        <ul className="space-y-1">
+                          {realAnalysisResult.next_steps.map((step, i) => (
+                            <li key={i} className="text-[10px] text-slate-300 flex items-start gap-1.5">
+                              <ArrowRight className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Resume Bullets */}
+                    {realAnalysisResult.resume_bullets?.length > 0 && (
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-indigo-500/30 space-y-1.5">
+                        <span className="text-[10px] font-bold text-indigo-400 font-mono">
+                          GENERATED ATS RESUME BULLET POINTS:
+                        </span>
+                        {realAnalysisResult.resume_bullets.map((bullet, i) => (
+                          <div key={i} className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
+                            <p className="text-[10px] text-slate-200 italic font-mono flex-1">"{bullet}"</p>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bullet);
+                                setCopiedId(`bullet_${i}`);
+                                setTimeout(() => setCopiedId(null), 2000);
+                              }}
+                              className="text-[9px] text-indigo-400 hover:text-indigo-300 p-1 shrink-0"
+                            >
+                              {copiedId === `bullet_${i}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-indigo-300 font-mono">READY TO SCAN:</span>
+                    <p className="text-[10px] text-slate-400">
+                      Click "Run Live AI Resume Analysis" above to parse skills, compute dynamic readiness score, and extract strengths and gaps with Gemini AI.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1533,6 +1696,64 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                   <p className="text-[11px] text-indigo-300">{profile.targetRole} &bull; {profile.targetCompany}</p>
                   <p className="text-[10px] text-slate-400">{profile.college}</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Gemini API Key Configuration Card */}
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                    <Key className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Google Gemini API Configuration</h4>
+                    <p className="text-[10px] text-slate-400">Enables live ATS analysis, mock interview grading & copilot</p>
+                  </div>
+                </div>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                  isOnline 
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                }`}>
+                  {isOnline ? '● ONLINE (Gemini Live)' : '○ OFFLINE (Demo Data)'}
+                </span>
+              </div>
+
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 block mb-1">Google AI Studio API Key (AIza...):</label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={e => setApiKeyInput(e.target.value)}
+                    placeholder="Enter AIzaSy..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    onClick={handleSaveApiKey}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
+                  >
+                    {isApiKeySaved ? 'Saved!' : 'Save Key'}
+                  </button>
+                  {apiKeyInput && (
+                    <button
+                      onClick={() => {
+                        setApiKeyInput('');
+                        AIService.setApiKey('');
+                        setIsOnline(false);
+                        setDemoMode(true);
+                      }}
+                      className="bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 px-2.5 py-1.5 rounded-xl text-xs transition"
+                      title="Clear API Key"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p className="text-[9px] text-slate-500 mt-1">
+                  Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">Google AI Studio</a>. Keys are stored locally in your browser sandbox.
+                </p>
               </div>
             </div>
 
