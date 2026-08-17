@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Glow for Flight Trajectory -->
+    <path
+        android:pathData="M 30,68 C 45,68 62,54 75,34"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeColor="#333B82F6" />
+
+    <!-- Primary Electric Blue Ascending Wing Curve -->
+    <path
+        android:pathData="M 30,68 C 45,68 62,54 75,34"
+        android:strokeWidth="6"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="30"
+                android:startY="68"
+                android:endX="75"
+                android:endY="34"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF1D4ED8" />
+                <item android:offset="0.5" android:color="#FF3B82F6" />
+                <item android:offset="1.0" android:color="#FF60A5FA" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Secondary Pure Luminous White Streamline -->
+    <path
+        android:pathData="M 35,73 C 48,70 63,56 71,39"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="35"
+                android:startY="73"
+                android:endX="71"
+                android:endY="39"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="1.0" android:color="#FFBFDBFE" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Cyan Acceleration Arc -->
+    <path
+        android:pathData="M 41,77 C 52,74 64,63 68,49"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeColor="#FF38BDF8" />
+
+    <!-- Compass / Career Node at the Trajectory Apex (75, 34) -->
+    <!-- Starburst 4-point Diamond Flare -->
+    <path
+        android:pathData="M 75,27 L 76.5,32.5 L 82,34 L 76.5,35.5 L 75,41 L 73.5,35.5 L 68,34 L 73.5,32.5 Z"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Glowing Core Ring -->
+    <path
+        android:pathData="M 75,34 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0"
+        android:fillColor="#FF3B82F6" />
+
+    <!-- Center Luminous Sparkle -->
+    <path
+        android:pathData="M 75,34 m -1.5,0 a 1.5,1.5 0 1,0 3,0 a 1.5,1.5 0 1,0 -3,0"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Subtle Career Direction Arrow / Chevron in Lower Left Safe Area -->
+    <path
+        android:pathData="M 33,63 L 40,63 L 44,57 L 37,57 Z"
+        android:fillColor="#6660A5FA" />
+</vector>

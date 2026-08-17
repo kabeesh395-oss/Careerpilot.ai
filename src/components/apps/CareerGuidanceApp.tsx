@@ -459,33 +459,45 @@ export const CareerGuidanceApp: React.FC = () => {
 
   // Real AI Resume Analysis Handler
   const handleRunAiResumeAnalysis = async () => {
-    if (!resumeText.trim()) return;
     setIsAnalyzing(true);
     try {
       const result = await AIService.analyze({
-        role: profile.targetRole,
-        resumeText: resumeText
+        target_role: profile.targetRole,
+        resume_text: resumeText,
+        skills: profile.currentSkills
       });
       setRealAnalysisResult(result);
-      setAtsScore(result.readiness_score);
 
-      // Dynamically update user profile pillars
-      setPillars(prev => ({
-        ...prev,
-        resume: result.readiness_score,
-        skills: Math.min(100, Math.max(35, Math.round(result.readiness_score * 0.9 + result.strengths.length * 2)))
-      }));
+      if (!result.error && result.readiness_score > 0) {
+        setAtsScore(result.readiness_score);
 
-      // Enrich profile skills with newly extracted strengths
-      if (result.strengths && result.strengths.length > 0) {
-        setProfile(p => ({
-          ...p,
-          xp: p.xp + 120,
-          currentSkills: Array.from(new Set([...p.currentSkills, ...result.strengths]))
+        // Dynamically update user profile pillars
+        setPillars(prev => ({
+          ...prev,
+          resume: result.readiness_score,
+          skills: Math.min(100, Math.max(35, Math.round(result.readiness_score * 0.9 + result.strengths.length * 2)))
         }));
+
+        // Enrich profile skills with newly extracted strengths
+        if (result.strengths && result.strengths.length > 0) {
+          setProfile(p => ({
+            ...p,
+            xp: p.xp + 120,
+            currentSkills: Array.from(new Set([...p.currentSkills, ...result.strengths]))
+          }));
+        }
       }
     } catch (err) {
       console.error('Error running AI Resume Analysis:', err);
+      setRealAnalysisResult({
+        readiness_score: 0,
+        strengths: [],
+        skill_gaps: [],
+        recommended_skills: [],
+        next_steps: [],
+        resume_bullets: [],
+        error: "Failed to connect to AI service. Check your internet connection or verify your API key."
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -1239,88 +1251,110 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-2.5 pt-1"
                   >
-                    {/* Strengths & Gaps Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/30 space-y-1.5">
-                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Detected Strengths ({realAnalysisResult.strengths.length})
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {realAnalysisResult.strengths.map((str, i) => (
-                            <span key={i} className="text-[9px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">
-                              ✓ {str}
-                            </span>
-                          ))}
+                    {realAnalysisResult.error ? (
+                      <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-xl space-y-1 text-rose-300">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-rose-400">
+                          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                          <span>AI Analysis Notice</span>
                         </div>
+                        <p className="text-[11px] leading-relaxed text-rose-200 font-medium">
+                          {realAnalysisResult.error}
+                        </p>
                       </div>
-
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-rose-500/30 space-y-1.5">
-                        <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> Skill Gaps ({realAnalysisResult.skill_gaps.length})
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {realAnalysisResult.skill_gaps.map((gap, i) => (
-                            <span key={i} className="text-[9px] bg-rose-950/60 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 rounded font-mono">
-                              ▲ {gap}
+                    ) : (
+                      <>
+                        {/* Strengths & Gaps Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/30 space-y-1.5">
+                            <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Detected Strengths ({realAnalysisResult.strengths.length})
                             </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Recommended Skills */}
-                    {realAnalysisResult.recommended_skills?.length > 0 && (
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
-                        <span className="text-[10px] font-bold text-indigo-300 font-mono">
-                          RECOMMENDED SKILLS TO BRIDGE GAPS:
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {realAnalysisResult.recommended_skills.map((rec, i) => (
-                            <span key={i} className="text-[9px] bg-indigo-950/50 text-indigo-200 border border-indigo-500/30 px-2 py-0.5 rounded-md font-mono">
-                              + {rec}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Next Steps */}
-                    {realAnalysisResult.next_steps?.length > 0 && (
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
-                        <span className="text-[10px] font-bold text-amber-400 font-mono">ACTIONABLE NEXT STEPS:</span>
-                        <ul className="space-y-1">
-                          {realAnalysisResult.next_steps.map((step, i) => (
-                            <li key={i} className="text-[10px] text-slate-300 flex items-start gap-1.5">
-                              <ArrowRight className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Resume Bullets */}
-                    {realAnalysisResult.resume_bullets?.length > 0 && (
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-indigo-500/30 space-y-1.5">
-                        <span className="text-[10px] font-bold text-indigo-400 font-mono">
-                          GENERATED ATS RESUME BULLET POINTS:
-                        </span>
-                        {realAnalysisResult.resume_bullets.map((bullet, i) => (
-                          <div key={i} className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
-                            <p className="text-[10px] text-slate-200 italic font-mono flex-1">"{bullet}"</p>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(bullet);
-                                setCopiedId(`bullet_${i}`);
-                                setTimeout(() => setCopiedId(null), 2000);
-                              }}
-                              className="text-[9px] text-indigo-400 hover:text-indigo-300 p-1 shrink-0"
-                            >
-                              {copiedId === `bullet_${i}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                            </button>
+                            <div className="flex flex-wrap gap-1">
+                              {realAnalysisResult.strengths.length > 0 ? (
+                                realAnalysisResult.strengths.map((str, i) => (
+                                  <span key={i} className="text-[9px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">
+                                    ✓ {str}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[9px] text-slate-400 italic">No matching verified strengths found</span>
+                              )}
+                            </div>
                           </div>
-                        ))}
-                      </div>
+
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-rose-500/30 space-y-1.5">
+                            <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5" /> Skill Gaps ({realAnalysisResult.skill_gaps.length})
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {realAnalysisResult.skill_gaps.length > 0 ? (
+                                realAnalysisResult.skill_gaps.map((gap, i) => (
+                                  <span key={i} className="text-[9px] bg-rose-950/60 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 rounded font-mono">
+                                    ▲ {gap}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[9px] text-slate-400 italic">No critical skill gaps identified</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Recommended Skills */}
+                        {realAnalysisResult.recommended_skills?.length > 0 && (
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                            <span className="text-[10px] font-bold text-indigo-300 font-mono">
+                              RECOMMENDED SKILLS TO BRIDGE GAPS:
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {realAnalysisResult.recommended_skills.map((rec, i) => (
+                                <span key={i} className="text-[9px] bg-indigo-950/50 text-indigo-200 border border-indigo-500/30 px-2 py-0.5 rounded-md font-mono">
+                                  + {rec}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Next Steps */}
+                        {realAnalysisResult.next_steps?.length > 0 && (
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                            <span className="text-[10px] font-bold text-amber-400 font-mono">ACTIONABLE NEXT STEPS:</span>
+                            <ul className="space-y-1">
+                              {realAnalysisResult.next_steps.map((step, i) => (
+                                <li key={i} className="text-[10px] text-slate-300 flex items-start gap-1.5">
+                                  <ArrowRight className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                                  <span>{step}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Resume Bullets */}
+                        {realAnalysisResult.resume_bullets?.length > 0 && (
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-indigo-500/30 space-y-1.5">
+                            <span className="text-[10px] font-bold text-indigo-400 font-mono">
+                              GENERATED ATS RESUME BULLET POINTS:
+                            </span>
+                            {realAnalysisResult.resume_bullets.map((bullet, i) => (
+                              <div key={i} className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
+                                <p className="text-[10px] text-slate-200 italic font-mono flex-1">"{bullet}"</p>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(bullet);
+                                    setCopiedId(`bullet_${i}`);
+                                    setTimeout(() => setCopiedId(null), 2000);
+                                  }}
+                                  className="text-[9px] text-indigo-400 hover:text-indigo-300 p-1 shrink-0"
+                                >
+                                  {copiedId === `bullet_${i}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </motion.div>
                 ) : (

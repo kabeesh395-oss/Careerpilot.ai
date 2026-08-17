@@ -58,120 +58,146 @@ export const AIService = {
 
   // 1. ANALYZE RESUME & CAREER TRAJECTORY WITH GEMINI
   analyze: async (data: {
-    role: string;
-    resumeText: string;
-    skills?: string;
+    target_role?: string;
+    resume_text?: string;
+    role?: string;
+    resumeText?: string;
+    skills?: string[] | string;
   }): Promise<CareerAnalysisResponse> => {
-    const role = data.role || 'Software Engineer';
-    const resumeText = data.resumeText || data.skills || '';
+    const targetRole = (data.target_role || data.role || '').trim();
+    const resumeText = (data.resume_text || data.resumeText || (typeof data.skills === 'string' ? data.skills : '')).trim();
+    const skillsList = Array.isArray(data.skills) 
+      ? data.skills 
+      : typeof data.skills === 'string' && data.skills 
+        ? data.skills.split(',').map(s => s.trim()).filter(Boolean) 
+        : [];
+
+    // 1. Check if API key exists
+    if (!AIService.isConfigured()) {
+      return {
+        readiness_score: 0,
+        strengths: [],
+        skill_gaps: [],
+        recommended_skills: [],
+        next_steps: [],
+        resume_bullets: [],
+        error: "AI service is not configured. Please add your API key in Profile."
+      };
+    }
+
+    // 2. Validate user input (Ensure they didn't submit empty fields)
+    if (!targetRole || !resumeText) {
+      return {
+        readiness_score: 0,
+        strengths: [],
+        skill_gaps: [],
+        recommended_skills: [],
+        next_steps: [],
+        resume_bullets: [],
+        error: "Please complete your profile and enter a target role to run the analysis."
+      };
+    }
+
+    // 3. Construct input payload using REAL user data
+    const inputPayload = {
+      task: "career_analysis",
+      target_role: targetRole,
+      resume_text: resumeText,
+      skills: skillsList
+    };
+
     const apiKey = AIService.getApiKey();
 
-    if (AIService.isConfigured()) {
-      const systemInstruction = `You are the core AI engine for "CareerPilot AI". Your job is to analyze a user's pasted resume text and target role, and return STRICT JSON containing the analysis.
+    const systemInstruction = `You are the core AI engine for "CareerPilot AI". Your job is to analyze brand new users who are inputting their data for the first time.
 
-### STRICT RULES:
+### STRICT RULES FOR NEW USERS (CRITICAL):
 1. Output ONLY valid JSON. NO markdown blocks. NO conversational text.
-2. Do not use default values. You MUST extract the actual skills and gaps from the provided resume text. If a skill is not in the resume, put it in the skill_gaps array.
-3. Compute a realistic readiness_score (0-100) based strictly on the relevance of the resume for the target role.
+2. DO NOT use default or demo data. You must analyze the EXACT text provided by the user.
+3. NEVER hallucinate skills. If a skill is not explicitly written in the user's input, do not add it to their strengths.
+4. If the user provides incomplete data (e.g., missing target role or resume text), return this exact JSON:
+   {"error": "Please complete your profile and enter a target role to run the analysis."}
+5. If the user provides valid data, calculate a realistic readiness_score (0-100) based ONLY on what they provided.
 
-### INPUT:
-{"task": "career_analysis", "target_role": "${role}", "resume_text": ${JSON.stringify(resumeText)}}
+### EXPECTED INPUT (May contain empty fields for new users):
+{
+  "task": "career_analysis",
+  "target_role": "Data Scientist", 
+  "resume_text": "I know Python and SQL. I built a dashboard.",
+  "skills": ["Python", "SQL"]
+}
 
-### EXPECTED OUTPUT SCHEMA:
+### EXPECTED OUTPUT SCHEMA (Strict JSON):
 {
   "readiness_score": 45,
   "strengths": ["Python", "SQL"],
-  "skill_gaps": ["Docker", "Kubernetes", "MLOps"],
-  "recommended_skills": ["PyTorch", "FastAPI"],
-  "next_steps": ["Learn Docker fundamentals", "Build an ML API"],
-  "resume_bullets": ["Engineered a scalable backend using Python and SQL."]
+  "skill_gaps": ["Machine Learning", "Statistics", "Pandas"],
+  "recommended_skills": ["Scikit-learn", "Tableau"],
+  "next_steps": ["Learn Pandas for data manipulation", "Build a machine learning model"],
+  "resume_bullets": ["Engineered a data dashboard using Python and SQL to visualize key metrics."]
 }`;
 
-      const prompt = `Analyze this resume for the role of ${role}. Resume text:\n${resumeText}\n\nReturn strict JSON following the schema.`;
+    // Try gemini-1.5-flash and gemini-2.5-flash
+    const models = ['gemini-1.5-flash', 'gemini-2.5-flash'];
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: JSON.stringify(inputPayload) }] }],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.1
+            }
+          })
+        });
 
-      // Try gemini-2.5-flash first, fallback to standard gemini endpoint
-      const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
-      for (const model of models) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              systemInstruction: { parts: [{ text: systemInstruction }] },
-              generationConfig: {
-                responseMimeType: 'application/json',
-                temperature: 0.2
-              }
-            })
-          });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          console.warn(`Gemini API error with ${model}:`, errData);
+          continue;
+        }
 
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            console.warn(`Gemini API error with ${model}:`, errData);
-            continue;
-          }
-
-          const result = await response.json();
-          const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
+        const result = await response.json();
+        const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          if (parsed.error) {
             return {
-              readiness_score: Math.min(100, Math.max(10, Number(parsed.readiness_score) || 75)),
-              strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-              skill_gaps: Array.isArray(parsed.skill_gaps) ? parsed.skill_gaps : [],
-              recommended_skills: Array.isArray(parsed.recommended_skills) ? parsed.recommended_skills : [],
-              next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps : [],
-              resume_bullets: Array.isArray(parsed.resume_bullets) ? parsed.resume_bullets : []
+              readiness_score: 0,
+              strengths: [],
+              skill_gaps: [],
+              recommended_skills: [],
+              next_steps: [],
+              resume_bullets: [],
+              error: parsed.error
             };
           }
-        } catch (error) {
-          console.error(`AI Analysis Error with ${model}:`, error);
+
+          return {
+            readiness_score: Math.min(100, Math.max(0, Number(parsed.readiness_score) ?? 50)),
+            strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+            skill_gaps: Array.isArray(parsed.skill_gaps) ? parsed.skill_gaps : [],
+            recommended_skills: Array.isArray(parsed.recommended_skills) ? parsed.recommended_skills : [],
+            next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps : [],
+            resume_bullets: Array.isArray(parsed.resume_bullets) ? parsed.resume_bullets : []
+          };
         }
+      } catch (error) {
+        console.error(`AI Error with ${model}:`, error);
       }
     }
 
-    // Dynamic Offline NLP extraction fallback (extracts actual words from resumeText)
-    const lower = resumeText.toLowerCase();
-    const commonTechSkills = [
-      'Python', 'Java', 'C++', 'Go', 'Rust', 'JavaScript', 'TypeScript', 'React', 'Node.js',
-      'FastAPI', 'Django', 'Flask', 'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis',
-      'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Git', 'Linux', 'PyTorch', 'TensorFlow',
-      'Scikit-learn', 'Pandas', 'NumPy', 'HTML/CSS', 'GraphQL', 'Kafka', 'CI/CD'
-    ];
-
-    const detectedStrengths = commonTechSkills.filter(skill =>
-      lower.includes(skill.toLowerCase())
-    );
-
-    const isML = role.toLowerCase().includes('ml') || role.toLowerCase().includes('ai') || role.toLowerCase().includes('machine');
-    const isBackend = role.toLowerCase().includes('backend') || role.toLowerCase().includes('cloud');
-
-    const expectedKeywords = isML
-      ? ['PyTorch', 'Docker', 'FastAPI', 'Vector Search', 'MLOps', 'Kubernetes']
-      : isBackend
-      ? ['Docker', 'PostgreSQL', 'Redis', 'Kafka', 'System Design', 'CI/CD']
-      : ['TypeScript', 'React', 'Next.js', 'Tailwind', 'GraphQL', 'Testing'];
-
-    const missingGaps = expectedKeywords.filter(k => !detectedStrengths.some(ds => ds.toLowerCase() === k.toLowerCase()));
-
-    const calculatedScore = Math.min(95, Math.max(30, 40 + detectedStrengths.length * 8));
-
     return {
-      readiness_score: calculatedScore,
-      strengths: detectedStrengths.length > 0 ? detectedStrengths : ['Basic Programming Logic', 'Data Structures'],
-      skill_gaps: missingGaps.length > 0 ? missingGaps : ['Production CI/CD', 'Distributed Monitoring'],
-      recommended_skills: missingGaps.slice(0, 3),
-      next_steps: [
-        `Complete a production-grade project showcasing ${missingGaps[0] || 'Docker'}`,
-        `Rewrite resume project bullets with quantified latency metrics`,
-        `Practice technical interview questions for ${role}`
-      ],
-      resume_bullets: [
-        `Architected a high-throughput backend service with ${detectedStrengths[0] || 'Python'}, improving response latency by 45%.`,
-        `Engineered modular data pipelines with automated test coverage and zero regression defects.`
-      ]
+      readiness_score: 0,
+      strengths: [],
+      skill_gaps: [],
+      recommended_skills: [],
+      next_steps: [],
+      resume_bullets: [],
+      error: "Failed to connect to AI service. Check your internet connection or verify your API key."
     };
   },
 
