@@ -8,33 +8,44 @@ import {
   ShieldCheck, Trash2, User, Briefcase, 
   Target, CheckSquare, Zap, Flame,
   MessageSquare, Copy, Check, BarChart3, Sun, Moon,
-  ChevronRight, FileSearch, Bookmark, Plus, X, Lock, Download, Key
+  ChevronRight, FileSearch, Bookmark, Plus, X, Lock, Download, Key,
+  Github, Linkedin, BookOpen, Calendar
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { AIService, CareerAnalysisResponse } from '../../services/aiService';
+import { AnalyticsService } from '../../services/analyticsService';
+import { CareerRecommendationEngine } from '../../services/careerRecommendationEngine';
 
 // Career Modules
 import { 
   CareerEnergyTier, CareerPillars, PillarWeights, SkillEvidenceItem, 
-  DailyMission, OpportunityMatch, TrackedApplication, EnhancedInterviewFeedback 
+  DailyMission, OpportunityMatch, TrackedApplication, EnhancedInterviewFeedback,
+  RoadmapStage, ProjectItem, MockQuestion
 } from '../career/careerTypes';
 import { 
-  getPillarWeightsForRole, DEFAULT_SKILL_EVIDENCE, DEFAULT_DAILY_MISSIONS, 
+  getPillarWeightsForRole, DEFAULT_PROFILE, DEFAULT_STAGES, DEFAULT_PROJECT_ITEMS,
+  DEFAULT_SKILL_EVIDENCE, DEFAULT_DAILY_MISSIONS, 
   DEFAULT_OPPORTUNITIES, DEFAULT_APPLICATIONS 
 } from '../career/careerConstants';
-import { CareerEnergyGauge, getCareerEnergyTier } from '../career/CareerEnergyGauge';
-import { ScoreDiagnosisModal } from '../career/ScoreDiagnosisModal';
+import { CareerEnergyGauge } from '../career/CareerEnergyGauge';
 import { TodayMissionCard } from '../career/TodayMissionCard';
 import { JobDescriptionAnalyzer } from '../career/JobDescriptionAnalyzer';
 import { OpportunityMatchingView } from '../career/OpportunityMatchingView';
 import { ApplicationTrackerView } from '../career/ApplicationTrackerView';
 import { SkillEvidenceMatrix } from '../career/SkillEvidenceMatrix';
 import { PrivacySettingsModal } from '../career/PrivacySettingsModal';
+import { GitHubAnalyzerView } from '../career/GitHubAnalyzerView';
+import { LinkedInAnalyzerView } from '../career/LinkedInAnalyzerView';
+import { LearningEngineView } from '../career/LearningEngineView';
+import { DailyCareerPlannerView } from '../career/DailyCareerPlannerView';
+import { SkillGapMatrixView } from '../career/SkillGapMatrixView';
+import { ComprehensiveReadinessModal } from '../career/ComprehensiveReadinessModal';
+import { AiCareerAssistantModal } from '../career/AiCareerAssistantModal';
 
 // --- MOTION ANIMATED SCORE COUNTER & PROGRESS COMPONENTS ---
 export const AnimatedScoreCounter: React.FC<{ value: number; duration?: number; delay?: number }> = ({ 
   value, 
-  duration = 1.2,
+  duration = 1.0,
   delay = 0 
 }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -79,7 +90,6 @@ export const AnimatedProgressBar: React.FC<{
   );
 };
 
-// --- DATA STRUCTURES & INTERFACES ---
 export interface UserProfile {
   name: string;
   college: string;
@@ -99,215 +109,7 @@ export interface UserProfile {
   xp: number;
 }
 
-export interface RoadmapTask {
-  id: string;
-  title: string;
-  completed: boolean;
-  estimatedHours: number;
-}
-
-export interface RoadmapStage {
-  id: string;
-  title: string;
-  subtitle: string;
-  duration: string;
-  skills: string[];
-  tasks: RoadmapTask[];
-  project: string;
-}
-
-export interface ProjectItem {
-  id: string;
-  title: string;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  technologies: string[];
-  description: string;
-  careerValue: string;
-  duration: string;
-  resumeBullet: string;
-  bridgesGap?: string;
-}
-
-export interface MockQuestion {
-  id: string;
-  type: 'Technical' | 'HR' | 'Behavioral';
-  question: string;
-  context: string;
-  sampleAnswer: string;
-  keyTopics: string[];
-}
-
-export interface LearningTask {
-  id: string;
-  title: string;
-  category: 'Daily' | 'Weekly' | 'Revision' | 'Project';
-  priority: 'High' | 'Medium' | 'Low';
-  completed: boolean;
-  dueDate: string;
-}
-
-// --- INITIAL DEFAULTS ---
-const DEFAULT_PROFILE: UserProfile = {
-  name: 'Alex Chen',
-  college: 'National Institute of Technology',
-  degree: 'B.Tech / B.E.',
-  department: 'Computer Science & Engineering',
-  year: '3rd Year (Class of 2027)',
-  currentSkills: ['Python', 'Data Structures & Algorithms', 'SQL', 'Git', 'HTML/CSS', 'FastAPI'],
-  programmingLanguages: ['Python', 'C++', 'SQL'],
-  interests: ['Machine Learning', 'AI Systems', 'Distributed Systems'],
-  experienceLevel: 'Student / Early Career',
-  targetRole: 'Machine Learning Engineer',
-  targetCompany: 'Google DeepMind',
-  github: 'alexchen-dev',
-  linkedin: 'alex-chen-tech',
-  leetcode: 'alexchen_code',
-  streak: 7,
-  xp: 1450
-};
-
-const DEFAULT_STAGES: RoadmapStage[] = [
-  {
-    id: 's1',
-    title: 'Stage 1: Core Programming & Algorithms',
-    subtitle: 'Master fundamental logic, time complexity, and data structures in Python / C++',
-    duration: 'Weeks 1 - 3',
-    skills: ['Python 3.12 OOP', 'Data Structures (Trees, Graphs)', 'Space-Time Complexity', 'Recursion & Dynamic Programming'],
-    tasks: [
-      { id: 't1_1', title: 'Implement Binary Search, QuickSort, and MergeSort from scratch', completed: true, estimatedHours: 4 },
-      { id: 't1_2', title: 'Solve NeetCode 75 Core Array & String problems', completed: true, estimatedHours: 8 },
-      { id: 't1_3', title: 'Implement Graph BFS / DFS traversal algorithms and Dijkstra shortest path', completed: true, estimatedHours: 6 }
-    ],
-    project: 'CLI Data Structures Visualizer in Pure Python'
-  },
-  {
-    id: 's2',
-    title: 'Stage 2: Database Systems & API Backend Engineering',
-    subtitle: 'Design relational schemas, SQL indexing, and asynchronous microservices',
-    duration: 'Weeks 4 - 6',
-    skills: ['PostgreSQL', 'FastAPI REST APIs', 'Pydantic Validation', 'Database Indexing & ACID'],
-    tasks: [
-      { id: 't2_1', title: 'Design normalized SQL schema with foreign keys, indexes, and aggregate queries', completed: true, estimatedHours: 5 },
-      { id: 't2_2', title: 'Build asynchronous RESTful API with FastAPI and SQLite/PostgreSQL', completed: true, estimatedHours: 7 },
-      { id: 't2_3', title: 'Implement JWT authentication with token refresh logic and unit tests', completed: false, estimatedHours: 5 }
-    ],
-    project: 'E-Commerce Inventory & Order Management Microservice with FastAPI'
-  },
-  {
-    id: 's3',
-    title: 'Stage 3: Deep Learning Foundations & Model Inference',
-    subtitle: 'Learn PyTorch tensors, autograd derivations, backpropagation, and CNNs/Transformers',
-    duration: 'Weeks 7 - 9',
-    skills: ['PyTorch Tensors', 'Hugging Face Transformers', 'ONNX Runtime', 'Loss Functions & Optimizers'],
-    tasks: [
-      { id: 't3_1', title: 'Build and train a multi-layer perceptron (MLP) from scratch in PyTorch', completed: false, estimatedHours: 6 },
-      { id: 't3_2', title: 'Fine-tune BERT / RoBERTa classifier for sentiment analysis using HuggingFace', completed: false, estimatedHours: 8 },
-      { id: 't3_3', title: 'Export trained model to ONNX runtime format for sub-20ms inference latency', completed: false, estimatedHours: 4 }
-    ],
-    project: 'Sub-20ms NLP Document Classification Service with HuggingFace & ONNX'
-  },
-  {
-    id: 's4',
-    title: 'Stage 4: Vector Embeddings & RAG Architectures',
-    subtitle: 'Master semantic search, chunking strategies, vector databases, and LLM orchestration',
-    duration: 'Weeks 10 - 12',
-    skills: ['ChromaDB / Qdrant', 'SentenceTransformers', 'RAG Pipeline Architecture', 'Prompt Engineering & Evaluation'],
-    tasks: [
-      { id: 't4_1', title: 'Implement recursive chunking and semantic overlap on PDF documents', completed: false, estimatedHours: 5 },
-      { id: 't4_2', title: 'Index 10,000 document embeddings into ChromaDB with cosine similarity search', completed: false, estimatedHours: 6 },
-      { id: 't4_3', title: 'Build contextual RAG synthesis pipeline with hallucination guardrails', completed: false, estimatedHours: 7 }
-    ],
-    project: 'Autonomous Technical Document RAG Assistant with ChromaDB & LangChain'
-  },
-  {
-    id: 's5',
-    title: 'Stage 5: Containerization, CI/CD & Cloud Deployment',
-    subtitle: 'Containerize microservices, write GitHub Actions workflows, and deploy with Docker',
-    duration: 'Weeks 13 - 15',
-    skills: ['Docker Multi-Stage', 'GitHub Actions CI/CD', 'Cloud Run / AWS ECS', 'Health Check Endpoints'],
-    tasks: [
-      { id: 't5_1', title: 'Write production Dockerfile with multi-stage build reducing image size below 180MB', completed: false, estimatedHours: 4 },
-      { id: 't5_2', title: 'Setup automated GitHub Actions workflow running PyTest on pull requests', completed: false, estimatedHours: 4 },
-      { id: 't5_3', title: 'Deploy containerized ML service to Google Cloud Run with HTTPS endpoint', completed: false, estimatedHours: 5 }
-    ],
-    project: 'Production Containerized ML Pipeline on Cloud Run with Automated CI/CD'
-  },
-  {
-    id: 's6',
-    title: 'Stage 6: System Design for High-Throughput ML',
-    subtitle: 'Understand horizontal scaling, caching layers, message queues, and rate limiters',
-    duration: 'Weeks 16 - 17',
-    skills: ['Distributed Architecture', 'Redis Caching', 'Kafka / RabbitMQ Queues', 'Load Balancing & Rate Limiting'],
-    tasks: [
-      { id: 't6_1', title: 'Design high-throughput asynchronous inference queue with Redis & Celery', completed: false, estimatedHours: 6 },
-      { id: 't6_2', title: 'Study distributed caching strategies, write-through vs write-behind patterns', completed: false, estimatedHours: 5 },
-      { id: 't6_3', title: 'Simulate P99 latency bottlenecks under concurrent 500 RPS load with Locust', completed: false, estimatedHours: 4 }
-    ],
-    project: 'High-Concurrency Distributed Task Queue with Redis, Celery & FastAPI'
-  },
-  {
-    id: 's7',
-    title: 'Stage 7: High-Impact Portfolio & Technical Interview Mastery',
-    subtitle: 'Polished GitHub documentation, live demos, ATS-tuned resumes, and Mock interview coach',
-    duration: 'Weeks 18 - 20',
-    skills: ['ATS Keyword Alignment', 'STAR Behavioral Framework', 'System Design Whiteboard', 'Technical Deep-Dive Defense'],
-    tasks: [
-      { id: 't7_1', title: 'Rewrite all resume bullets to follow Google XYZ formula (Accomplished [X], measured by [Y], by doing [Z])', completed: true, estimatedHours: 3 },
-      { id: 't7_2', title: 'Record a 2-minute architectural walkthrough video for your flagship GitHub project', completed: false, estimatedHours: 4 },
-      { id: 't7_3', title: 'Complete 5 full technical and behavioral mock interview sessions in CareerPilot Coach', completed: false, estimatedHours: 6 }
-    ],
-    project: 'Full-Stack Portfolio Showcase with Live Interactive Architecture Demos'
-  }
-];
-
-const DEFAULT_PROJECT_ITEMS: ProjectItem[] = [
-  {
-    id: 'p_beg_1',
-    title: 'High-Performance Asynchronous REST API Engine',
-    difficulty: 'Beginner',
-    technologies: ['Python 3.12', 'FastAPI', 'PostgreSQL', 'Pydantic v2', 'PyTest'],
-    description: 'A production-grade RESTful API template featuring JWT authentication, role-based access control (RBAC), and automated OpenAPI docs.',
-    careerValue: 'Demonstrates rock-solid backend engineering fundamentals, database query optimization, and test-driven development.',
-    duration: '1-2 Weeks',
-    resumeBullet: 'Architected an asynchronous FastAPI backend microservice with PostgreSQL and JWT authentication, achieving sub-25ms response latency across 12 endpoints with 92% PyTest unit test coverage.',
-    bridgesGap: 'REST APIs & SQL'
-  },
-  {
-    id: 'p_int_1',
-    title: 'Multi-Stage Dockerized ML Inference Container',
-    difficulty: 'Intermediate',
-    technologies: ['Docker', 'FastAPI', 'PyTorch', 'ONNX Runtime', 'GitHub Actions'],
-    description: 'A containerized microservice that loads fine-tuned PyTorch models with multi-stage Docker builds and automated CI/CD test gates.',
-    careerValue: 'Directly bridges the critical #1 MLOps gap for ML Engineering roles: production containerization and automated verification.',
-    duration: '2-3 Weeks',
-    resumeBullet: 'Engineered a containerized ML inference service in Docker with multi-stage caching, reducing image footprint by 65% (to 175MB) and automating deployment testing via GitHub Actions.',
-    bridgesGap: 'Docker Containerization'
-  },
-  {
-    id: 'p_int_2',
-    title: 'Enterprise Document RAG Knowledge Assistant',
-    difficulty: 'Intermediate',
-    technologies: ['Python', 'ChromaDB', 'HuggingFace', 'FastAPI', 'SentenceTransformers'],
-    description: 'A Retrieval-Augmented Generation (RAG) system with semantic chunking, vector indexing over 10k documents, and cosine reranking.',
-    careerValue: 'Demonstrates modern applied AI engineering: embeddings, vector database queries, and context synthesis.',
-    duration: '2-3 Weeks',
-    resumeBullet: 'Developed an enterprise RAG semantic search engine using ChromaDB and SentenceTransformers, enabling sub-80ms semantic retrieval across 10,000+ technical documents.',
-    bridgesGap: 'Vector Databases'
-  },
-  {
-    id: 'p_adv_1',
-    title: 'Real-Time Streaming Transaction Fraud Detection Engine',
-    difficulty: 'Advanced',
-    technologies: ['Python', 'Kafka', 'Redis', 'Docker', 'XGBoost', 'MLflow'],
-    description: 'An event-driven machine learning pipeline that consumes real-time streaming transaction feeds and evaluates fraud likelihood with P99 < 40ms.',
-    careerValue: 'Tier-1 FAANG-ready capstone showcasing distributed systems, event streams, caching, and production ML monitoring.',
-    duration: '3-4 Weeks',
-    resumeBullet: 'Engineered an end-to-end streaming fraud detection pipeline with XGBoost and MLflow, attaining 96.8% ROC-AUC on 2M synthetic transactions with sub-40ms P99 inference latency.',
-    bridgesGap: 'Distributed Systems & MLOps'
-  }
-];
-
-const DEFAULT_QUESTIONS: MockQuestion[] = [
+const DEFAULT_MOCK_QUESTIONS: MockQuestion[] = [
   {
     id: 'q_tech_1',
     type: 'Technical',
@@ -347,21 +149,29 @@ export const CareerGuidanceApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analyze' | 'roadmap' | 'practice' | 'tracker' | 'profile'>('dashboard');
 
   // Sub-tabs
-  const [analyzeSubTab, setAnalyzeSubTab] = useState<'profiler' | 'job_matcher' | 'ats_resume'>('profiler');
-  const [roadmapSubTab, setRoadmapSubTab] = useState<'stages' | 'evidence_matrix'>('stages');
-  const [practiceSubTab, setPracticeSubTab] = useState<'mock_interview' | 'project_blueprints'>('mock_interview');
-  const [trackerSubTab, setTrackerSubTab] = useState<'opportunities' | 'pipeline'>('opportunities');
+  const [analyzeSubTab, setAnalyzeSubTab] = useState<'profiler' | 'job_matcher' | 'ats_resume' | 'github_auditor' | 'linkedin_optimizer'>('profiler');
+  const [roadmapSubTab, setRoadmapSubTab] = useState<'stages' | 'skill_gap_matrix' | 'evidence_matrix'>('stages');
+  const [practiceSubTab, setPracticeSubTab] = useState<'mock_interview' | 'project_blueprints' | 'learning_engine'>('mock_interview');
+  const [trackerSubTab, setTrackerSubTab] = useState<'daily_planner' | 'opportunities' | 'pipeline'>('daily_planner');
 
   // Candidate Profile State
   const [profile, setProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('careerpilot_profile');
-    return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
+    try {
+      const saved = localStorage.getItem('careerpilot_profile');
+      return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
+    } catch {
+      return DEFAULT_PROFILE;
+    }
   });
 
   // 4 Pillars Base Scores
   const [pillars, setPillars] = useState<CareerPillars>(() => {
-    const saved = localStorage.getItem('careerpilot_pillars');
-    return saved ? JSON.parse(saved) : { skills: 85, projects: 70, resume: 82, interview: 75 };
+    try {
+      const saved = localStorage.getItem('careerpilot_pillars');
+      return saved ? JSON.parse(saved) : { skills: 85, projects: 70, resume: 82, interview: 75 };
+    } catch {
+      return { skills: 85, projects: 70, resume: 82, interview: 75 };
+    }
   });
 
   // Dynamic Weights calculation based on role
@@ -369,45 +179,69 @@ export const CareerGuidanceApp: React.FC = () => {
     return getPillarWeightsForRole(profile.targetRole);
   }, [profile.targetRole]);
 
+  // Dynamic 9-Pillar Readiness Intelligence
+  const readinessDiagnosis = useMemo(() => {
+    return CareerRecommendationEngine.calculateReadiness(profile, profile.currentSkills);
+  }, [profile]);
+
   // Overall Career Readiness Score
   const readinessOverall = useMemo(() => {
-    const calc = Math.round(
-      pillars.skills * weights.skills +
-      pillars.projects * weights.projects +
-      pillars.resume * weights.resume +
-      pillars.interview * weights.interview
-    );
-    return Math.min(100, Math.max(10, calc));
-  }, [pillars, weights]);
+    return readinessDiagnosis.overallScore;
+  }, [readinessDiagnosis]);
 
   // Daily Missions State
   const [dailyMissions, setDailyMissions] = useState<DailyMission[]>(() => {
-    const saved = localStorage.getItem('careerpilot_missions');
-    return saved ? JSON.parse(saved) : DEFAULT_DAILY_MISSIONS;
+    try {
+      const saved = localStorage.getItem('careerpilot_missions');
+      return saved ? JSON.parse(saved) : DEFAULT_DAILY_MISSIONS;
+    } catch {
+      return DEFAULT_DAILY_MISSIONS;
+    }
   });
 
   // Skill Evidence State
   const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceItem[]>(() => {
-    const saved = localStorage.getItem('careerpilot_evidence');
-    return saved ? JSON.parse(saved) : DEFAULT_SKILL_EVIDENCE;
+    try {
+      const saved = localStorage.getItem('careerpilot_evidence');
+      return saved ? JSON.parse(saved) : DEFAULT_SKILL_EVIDENCE;
+    } catch {
+      return DEFAULT_SKILL_EVIDENCE;
+    }
   });
 
   // Opportunities & Applications State
   const [opportunities, setOpportunities] = useState<OpportunityMatch[]>(() => {
-    const saved = localStorage.getItem('careerpilot_opportunities');
-    return saved ? JSON.parse(saved) : DEFAULT_OPPORTUNITIES;
+    try {
+      const saved = localStorage.getItem('careerpilot_opportunities');
+      return saved ? JSON.parse(saved) : DEFAULT_OPPORTUNITIES;
+    } catch {
+      return DEFAULT_OPPORTUNITIES;
+    }
   });
 
   const [applications, setApplications] = useState<TrackedApplication[]>(() => {
-    const saved = localStorage.getItem('careerpilot_applications');
-    return saved ? JSON.parse(saved) : DEFAULT_APPLICATIONS;
+    try {
+      const saved = localStorage.getItem('careerpilot_applications');
+      return saved ? JSON.parse(saved) : DEFAULT_APPLICATIONS;
+    } catch {
+      return DEFAULT_APPLICATIONS;
+    }
   });
 
-  // Stages & Roadmap State
+  // Stages & Dynamic Roadmap State
   const [stages, setStages] = useState<RoadmapStage[]>(() => {
-    const saved = localStorage.getItem('careerpilot_stages');
-    return saved ? JSON.parse(saved) : DEFAULT_STAGES;
+    try {
+      const saved = localStorage.getItem('careerpilot_stages');
+      return saved ? JSON.parse(saved) : CareerRecommendationEngine.getDynamicRoadmap(profile.targetRole);
+    } catch {
+      return CareerRecommendationEngine.getDynamicRoadmap(profile.targetRole);
+    }
   });
+
+  // Project items
+  const projectItems = useMemo(() => {
+    return CareerRecommendationEngine.getRecommendedProjects(profile.targetRole);
+  }, [profile.targetRole]);
 
   // Theme & System States
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -420,10 +254,11 @@ export const CareerGuidanceApp: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [profileSavedToast, setProfileSavedToast] = useState(false);
 
-  // Career Analyzer Form State
+  // Form State for Profile
   const [analyzerForm, setAnalyzerForm] = useState({
     name: profile.name,
     college: profile.college,
+    degree: profile.degree || 'B.Tech Computer Science',
     department: profile.department,
     year: profile.year,
     targetRole: profile.targetRole,
@@ -431,7 +266,10 @@ export const CareerGuidanceApp: React.FC = () => {
     skills: profile.currentSkills.join(', '),
     programmingLanguages: profile.programmingLanguages.join(', '),
     experienceLevel: profile.experienceLevel,
-    interests: profile.interests.join(', ')
+    interests: profile.interests.join(', '),
+    github: profile.github || 'alexchen-dev',
+    linkedin: profile.linkedin || 'alex-chen-tech',
+    leetcode: profile.leetcode || 'alex_coder'
   });
 
   // Resume Analyzer States
@@ -447,82 +285,25 @@ export const CareerGuidanceApp: React.FC = () => {
   const [isApiKeySaved, setIsApiKeySaved] = useState(false);
   const [isOnline, setIsOnline] = useState(() => AIService.isConfigured());
 
-  // Save API Key Handler
-  const handleSaveApiKey = () => {
-    AIService.setApiKey(apiKeyInput);
-    const configured = AIService.isConfigured();
-    setIsOnline(configured);
-    setDemoMode(!configured);
-    setIsApiKeySaved(true);
-    setTimeout(() => setIsApiKeySaved(false), 2500);
-  };
-
-  // Real AI Resume Analysis Handler
-  const handleRunAiResumeAnalysis = async () => {
-    setIsAnalyzing(true);
-    try {
-      const result = await AIService.analyze({
-        target_role: profile.targetRole,
-        resume_text: resumeText,
-        skills: profile.currentSkills
-      });
-      setRealAnalysisResult(result);
-
-      if (!result.error && result.readiness_score > 0) {
-        setAtsScore(result.readiness_score);
-
-        // Dynamically update user profile pillars
-        setPillars(prev => ({
-          ...prev,
-          resume: result.readiness_score,
-          skills: Math.min(100, Math.max(35, Math.round(result.readiness_score * 0.9 + result.strengths.length * 2)))
-        }));
-
-        // Enrich profile skills with newly extracted strengths
-        if (result.strengths && result.strengths.length > 0) {
-          setProfile(p => ({
-            ...p,
-            xp: p.xp + 120,
-            currentSkills: Array.from(new Set([...p.currentSkills, ...result.strengths]))
-          }));
-        }
-      }
-    } catch (err) {
-      console.error('Error running AI Resume Analysis:', err);
-      setRealAnalysisResult({
-        readiness_score: 0,
-        strengths: [],
-        skill_gaps: [],
-        recommended_skills: [],
-        next_steps: [],
-        resume_bullets: [],
-        error: "Failed to connect to AI service. Check your internet connection or verify your API key."
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   // AI Mock Interview States
-  const [mockQuestions] = useState<MockQuestion[]>(DEFAULT_QUESTIONS);
+  const [mockQuestions] = useState<MockQuestion[]>(DEFAULT_MOCK_QUESTIONS);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
   const [candidateAnswer, setCandidateAnswer] = useState('');
   const [interviewFeedback, setInterviewFeedback] = useState<EnhancedInterviewFeedback | null>(null);
   const [isGrading, setIsGrading] = useState(false);
   const [interviewTypeFilter, setInterviewTypeFilter] = useState<'Technical' | 'HR' | 'Behavioral'>('Technical');
 
-  // AI Copilot Chat State
-  const [copilotMessages, setCopilotMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string }>>([
-    {
-      sender: 'ai',
-      text: `Greetings ${profile.name}! I am CareerPilot AI. Your active Career Energy is ${readinessOverall}/100 ⚡ aligned toward ${profile.targetRole}. How can I assist your career progression today?`
-    }
-  ]);
-  const [copilotInput, setCopilotInput] = useState('');
-  const [isCopilotThinking, setIsCopilotThinking] = useState(false);
-
   // Filtered mock questions
   const filteredQuestions = mockQuestions.filter(q => q.type === interviewTypeFilter);
+
+  // Award XP helper
+  const handleAwardXP = (amount: number) => {
+    setProfile(p => {
+      const updated = { ...p, xp: p.xp + amount };
+      localStorage.setItem('careerpilot_profile', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // Sync to LocalStorage
   useEffect(() => {
@@ -557,11 +338,60 @@ export const CareerGuidanceApp: React.FC = () => {
     localStorage.setItem('careerpilot_theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  // Copy helper
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  // Save API Key Handler
+  const handleSaveApiKey = () => {
+    AIService.setApiKey(apiKeyInput);
+    const configured = AIService.isConfigured();
+    setIsOnline(configured);
+    setDemoMode(!configured);
+    setIsApiKeySaved(true);
+    AnalyticsService.track('api_key_configured', { configured });
+    setTimeout(() => setIsApiKeySaved(false), 2500);
+  };
+
+  // Real AI Resume Analysis Handler
+  const handleRunAiResumeAnalysis = async () => {
+    setIsAnalyzing(true);
+    AnalyticsService.track('resume_analyzed', { targetRole: profile.targetRole });
+
+    try {
+      const result = await AIService.analyze({
+        target_role: profile.targetRole,
+        resume_text: resumeText,
+        skills: profile.currentSkills
+      });
+      setRealAnalysisResult(result);
+
+      if (!result.error && result.readiness_score > 0) {
+        setAtsScore(result.readiness_score);
+        setPillars(prev => ({
+          ...prev,
+          resume: result.readiness_score,
+          skills: Math.min(100, Math.max(35, Math.round(result.readiness_score * 0.9 + (result.strengths?.length || 0) * 2)))
+        }));
+
+        if (result.strengths && result.strengths.length > 0) {
+          setProfile(p => ({
+            ...p,
+            xp: p.xp + 120,
+            currentSkills: Array.from(new Set([...p.currentSkills, ...result.strengths]))
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Error running AI Resume Analysis:', err);
+      setRealAnalysisResult({
+        readiness_score: 0,
+        strengths: [],
+        skill_gaps: [],
+        recommended_skills: [],
+        next_steps: [],
+        resume_bullets: [],
+        error: "Failed to connect to AI service. Check your internet connection or verify your API key."
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Toggle Daily Mission completion
@@ -571,7 +401,7 @@ export const CareerGuidanceApp: React.FC = () => {
       const nextCompleted = !m.completed;
       if (nextCompleted) {
         setProfile(p => ({ ...p, xp: p.xp + m.xpReward }));
-        // Boost corresponding pillar
+        AnalyticsService.track('task_completed', { taskId: id, title: m.title });
         if (m.pillar === 'Projects') setPillars(p => ({ ...p, projects: Math.min(100, p.projects + 5) }));
         if (m.pillar === 'Interview') setPillars(p => ({ ...p, interview: Math.min(100, p.interview + 4) }));
         if (m.pillar === 'Resume') setPillars(p => ({ ...p, resume: Math.min(100, p.resume + 3) }));
@@ -593,6 +423,7 @@ export const CareerGuidanceApp: React.FC = () => {
           if (updated) {
             setProfile(p => ({ ...p, xp: p.xp + 50 }));
             setPillars(p => ({ ...p, skills: Math.min(100, p.skills + 2) }));
+            AnalyticsService.track('roadmap_stage_completed', { stageId, taskId });
           }
           return { ...t, completed: updated };
         })
@@ -606,6 +437,7 @@ export const CareerGuidanceApp: React.FC = () => {
       ...profile,
       name: analyzerForm.name.trim() || profile.name,
       college: analyzerForm.college.trim() || profile.college,
+      degree: analyzerForm.degree.trim() || profile.degree,
       department: analyzerForm.department.trim() || profile.department,
       year: analyzerForm.year.trim() || profile.year,
       targetRole: analyzerForm.targetRole.trim() || profile.targetRole,
@@ -613,9 +445,14 @@ export const CareerGuidanceApp: React.FC = () => {
       currentSkills: analyzerForm.skills.split(',').map(s => s.trim()).filter(Boolean),
       programmingLanguages: analyzerForm.programmingLanguages.split(',').map(s => s.trim()).filter(Boolean),
       experienceLevel: analyzerForm.experienceLevel,
-      interests: analyzerForm.interests.split(',').map(s => s.trim()).filter(Boolean)
+      interests: analyzerForm.interests.split(',').map(s => s.trim()).filter(Boolean),
+      github: analyzerForm.github.trim() || profile.github,
+      linkedin: analyzerForm.linkedin.trim() || profile.linkedin,
+      leetcode: analyzerForm.leetcode.trim() || profile.leetcode
     };
     setProfile(updated);
+    setStages(CareerRecommendationEngine.getDynamicRoadmap(updated.targetRole));
+    AnalyticsService.track('profile_updated', { targetRole: updated.targetRole });
     setProfileSavedToast(true);
     setTimeout(() => setProfileSavedToast(false), 2500);
   };
@@ -634,12 +471,14 @@ export const CareerGuidanceApp: React.FC = () => {
     };
     setApplications(prev => [newApp, ...prev]);
     setOpportunities(prev => prev.map(o => o.id === opp.id ? { ...o, applied: true } : o));
+    AnalyticsService.track('job_applied', { company: opp.company, role: opp.title });
   };
 
-  // Grade Mock Interview with 4 Dimensions
+  // Grade Mock Interview
   const handleGradeInterviewAnswer = async () => {
     if (!candidateAnswer.trim()) return;
     setIsGrading(true);
+    AnalyticsService.track('mock_interview_started', { type: interviewTypeFilter });
 
     try {
       const activeQ = filteredQuestions[activeQuestionIdx];
@@ -684,15 +523,10 @@ Provide JSON:
         const parsed = JSON.parse(response.text || '{}');
         setInterviewFeedback(parsed);
       } else {
-        await new Promise(r => setTimeout(r, 700));
+        await new Promise(r => setTimeout(r, 600));
         setInterviewFeedback({
           overallScore: 8.5,
-          dimensions: {
-            correctness: 9.0,
-            communication: 8.5,
-            depth: 8.0,
-            problemSolving: 8.5
-          },
+          dimensions: { correctness: 9.0, communication: 8.5, depth: 8.0, problemSolving: 8.5 },
           strengths: [
             'Direct, structured articulation of core architectural concepts.',
             'Accurate terminology alignment for runtime memory constraints.'
@@ -708,6 +542,7 @@ Provide JSON:
 
       setPillars(p => ({ ...p, interview: Math.min(100, p.interview + 3) }));
       setProfile(p => ({ ...p, xp: p.xp + 80 }));
+      AnalyticsService.track('mock_interview_completed', { score: 8.5 });
     } catch (err) {
       console.warn('Interview grader fallback:', err);
       const activeQ = filteredQuestions[activeQuestionIdx];
@@ -725,56 +560,16 @@ Provide JSON:
     }
   };
 
-  // Send message to AI Copilot
-  const handleSendCopilot = async (textToSend?: string) => {
-    const query = textToSend || copilotInput;
-    if (!query.trim()) return;
-
-    const userMsg = { sender: 'user' as const, text: query };
-    setCopilotMessages(prev => [...prev, userMsg]);
-    setCopilotInput('');
-    setIsCopilotThinking(true);
-
-    try {
-      const apiKey = AIService.getApiKey();
-      let reply = '';
-
-      if (apiKey) {
-        const ai = new GoogleGenAI({ apiKey });
-        const context = `You are CareerPilot AI, a personalized career advisor for ${profile.name}.
-Target Role: ${profile.targetRole} @ ${profile.targetCompany}
-Current Career Energy: ${readinessOverall}/100 ⚡
-Pillars: Skills=${pillars.skills}%, Projects=${pillars.projects}%, Resume=${pillars.resume}%, Interview=${pillars.interview}%
-Biggest Gap: Docker Containerization
-Answer concisely in 2-3 structured sentences with actionable bullet points.`;
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `${context}\n\nUser Question: ${query}`
-        });
-        reply = response.text || 'I have analyzed your request based on your career trajectory.';
-      } else {
-        await new Promise(r => setTimeout(r, 500));
-        if (query.toLowerCase().includes('learn next') || query.toLowerCase().includes('skill')) {
-          reply = `With your Career Energy at **${readinessOverall}/100 ⚡**, your highest-ROI gap is **Docker Multi-Stage containerization**. Closing this unlocks +12% role alignment for ${profile.targetRole}!`;
-        } else if (query.toLowerCase().includes('resume')) {
-          reply = `Your ATS score is **${atsScore}/100**. Replace passive phrasing with quantified impact: *"Engineered a containerized FastAPI ML service achieving 28ms P99 latency."*`;
-        } else if (query.toLowerCase().includes('project')) {
-          reply = `I recommend the **Multi-Stage Dockerized ML Inference Container**. It directly bridges your detected MLOps gap and provides a bullet-proof resume bullet.`;
-        } else {
-          reply = `You have a **7-day streak** with **${readinessOverall}/100 ⚡ alignment**. Complete Today's Mission to elevate your Projects pillar from ${pillars.projects}% to ${pillars.projects + 5}%.`;
-        }
-      }
-
-      setCopilotMessages(prev => [...prev, { sender: 'ai', text: reply }]);
-    } catch (err) {
-      setCopilotMessages(prev => [
-        ...prev, 
-        { sender: 'ai', text: `Focus on Today's Mission: Containerize your FastAPI ML model with Docker to bridge your biggest detected role gap.` }
-      ]);
-    } finally {
-      setIsCopilotThinking(false);
-    }
+  // Reset All Local Data
+  const handleResetAllData = () => {
+    localStorage.clear();
+    setProfile(DEFAULT_PROFILE);
+    setPillars({ skills: 85, projects: 70, resume: 82, interview: 75 });
+    setDailyMissions(DEFAULT_DAILY_MISSIONS);
+    setSkillEvidence(DEFAULT_SKILL_EVIDENCE);
+    setOpportunities(DEFAULT_OPPORTUNITIES);
+    setApplications(DEFAULT_APPLICATIONS);
+    setStages(DEFAULT_STAGES);
   };
 
   // Export Data JSON
@@ -783,6 +578,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
       profile,
       pillars,
       readinessOverall,
+      readinessDiagnosis,
       stages,
       dailyMissions,
       skillEvidence,
@@ -796,18 +592,6 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
     a.download = `CareerPilot_Data_${profile.name.replace(/\s+/g, '_')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  // Reset All Local Data
-  const handleResetAllData = () => {
-    localStorage.clear();
-    setProfile(DEFAULT_PROFILE);
-    setPillars({ skills: 85, projects: 70, resume: 82, interview: 75 });
-    setDailyMissions(DEFAULT_DAILY_MISSIONS);
-    setSkillEvidence(DEFAULT_SKILL_EVIDENCE);
-    setOpportunities(DEFAULT_OPPORTUNITIES);
-    setApplications(DEFAULT_APPLICATIONS);
-    setStages(DEFAULT_STAGES);
   };
 
   // Global Roadmap Progress
@@ -828,14 +612,14 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-xs font-black tracking-tight text-white flex items-center gap-1">
-                CareerPilot <span className="text-indigo-400">AI</span>
+              <h1 className={`text-xs font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1`}>
+                CareerPilot <span className="text-indigo-500">AI</span>
               </h1>
-              <span className="text-[9px] bg-indigo-500/20 text-indigo-300 font-mono px-1.5 py-0.2 rounded-full font-bold">
-                OS
+              <span className="text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono px-1.5 py-0.2 rounded-full font-bold">
+                PRO
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 font-medium">Autonomous Career Readiness Platform</p>
+            <p className="text-[10px] text-slate-400 font-medium">Autonomous Career Guidance & Readiness</p>
           </div>
         </div>
 
@@ -844,7 +628,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className={`p-1.5 rounded-lg border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
-            title="Toggle Light/Dark Theme"
+            title="Toggle Theme"
           >
             {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
@@ -853,12 +637,12 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
             onClick={() => setDemoMode(!demoMode)}
             className={`text-[9px] font-bold px-2 py-1 rounded-lg border transition flex items-center gap-1 ${
               demoMode 
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
-                : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
             }`}
           >
-            <Zap className="w-2.5 h-2.5 text-amber-300" />
-            {demoMode ? 'Demo' : 'Live API'}
+            <Zap className="w-2.5 h-2.5 text-amber-400" />
+            {demoMode ? 'Demo Mode' : 'Live Gemini'}
           </button>
         </div>
       </header>
@@ -873,7 +657,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
           <div className="space-y-3.5 animate-in fade-in duration-150">
             
             {/* Top Greeting with Streak & XP */}
-            <div className="bg-gradient-to-r from-indigo-900/60 via-purple-900/40 to-slate-900 border border-indigo-500/30 p-3.5 rounded-2xl shadow-lg relative overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-950/70 via-purple-950/40 to-slate-900 border border-indigo-500/30 p-3.5 rounded-2xl shadow-lg relative overflow-hidden">
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-1.5 text-xs text-indigo-300 font-semibold mb-0.5">
@@ -884,12 +668,12 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                     Target: <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-cyan-300">{profile.targetRole}</span>
                   </h2>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Aiming for <strong className="text-white">{profile.targetCompany}</strong> &bull; {profile.department}
+                    Aiming for <strong className="text-white">{profile.targetCompany}</strong> &bull; {profile.college}
                   </p>
                 </div>
 
                 <div className="flex flex-col items-end gap-1">
-                  <span className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                  <span className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm font-mono">
                     <Flame className="w-3 h-3 fill-amber-400 text-amber-400" /> {profile.streak} Days
                   </span>
                   <span className="text-[10px] font-mono text-indigo-300 font-bold">
@@ -899,7 +683,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
               </div>
             </div>
 
-            {/* Signature Career Energy Gauge (Red/Amber/Green/Gold) */}
+            {/* Signature Career Energy Gauge */}
             <CareerEnergyGauge
               score={readinessOverall}
               targetRole={profile.targetRole}
@@ -907,36 +691,36 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
               onOpenDiagnosis={() => setShowDiagnosisModal(true)}
             />
 
-            {/* Biggest Skill Gap Banner */}
+            {/* Contextual Next Best Action Banner */}
             <div 
               onClick={() => {
                 setActiveTab('practice');
                 setPracticeSubTab('project_blueprints');
               }}
-              className="bg-rose-950/30 border border-rose-500/30 p-3 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:border-rose-500/60 transition group"
+              className="bg-indigo-950/40 border border-indigo-500/40 p-3 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:border-indigo-500/70 transition group shadow-sm"
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30 group-hover:scale-105 transition">
-                  <AlertCircle className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30 group-hover:scale-105 transition">
+                  <Sparkles className="w-4 h-4 text-amber-300" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-rose-400 block">
-                    BIGGEST DETECTED GAP
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-indigo-300 block">
+                    NEXT BEST ACTION
                   </span>
                   <p className="text-xs font-bold text-white truncate">
-                    Docker Containerization & Multi-Stage Builds
+                    {readinessDiagnosis.nextBestAction.title}
                   </p>
-                  <p className="text-[10px] text-slate-300">
-                    Not detected in profile evidence &bull; Bridges +12% role alignment
+                  <p className="text-[10px] text-slate-300 truncate">
+                    {readinessDiagnosis.nextBestAction.expectedGain}
                   </p>
                 </div>
               </div>
-              <button className="text-[10px] text-rose-300 font-bold flex items-center gap-0.5 bg-rose-900/50 px-2 py-1 rounded-lg shrink-0 border border-rose-500/30">
-                Bridge Gap <ArrowRight className="w-3 h-3" />
+              <button className="text-[10px] text-indigo-200 font-bold flex items-center gap-0.5 bg-indigo-900/60 px-2 py-1 rounded-lg shrink-0 border border-indigo-500/40">
+                Start <ArrowRight className="w-3 h-3" />
               </button>
             </div>
 
-            {/* Today's Mission Card ⚡ */}
+            {/* Today's Mission Card */}
             {activeMission && (
               <TodayMissionCard
                 mission={activeMission}
@@ -957,128 +741,124 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
             )}
 
             {/* 4 Pillars Breakdown Cards */}
-            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2.5 shadow-md">
+            <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5 shadow-md`}>
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">Role-Weighted Pillars</span>
-                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> 4-Pillar Career Readiness
+                  <h3 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
+                    <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Career Readiness Breakdown
                   </h3>
                 </div>
                 <button
                   onClick={() => setShowDiagnosisModal(true)}
                   className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-0.5"
                 >
-                  Diagnostic <ChevronRight className="w-3 h-3" />
+                  Full 9-Pillar Diagnostic <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {/* 1. Skills */}
-                <motion.div 
-                  whileHover={{ scale: 1.02 }}
+                <div 
                   onClick={() => {
                     setActiveTab('roadmap');
-                    setRoadmapSubTab('evidence_matrix');
+                    setRoadmapSubTab('skill_gap_matrix');
                   }}
-                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition"
+                  className={`p-2.5 rounded-xl border space-y-1.5 cursor-pointer transition ${isDarkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200'}`}
                 >
                   <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-400 font-mono font-semibold">SKILLS ({Math.round(weights.skills * 100)}%)</span>
+                    <span className="text-slate-400 font-mono font-semibold">SKILLS</span>
                     <span className="font-bold text-emerald-400 font-mono">
                       <AnimatedScoreCounter value={pillars.skills} />%
                     </span>
                   </div>
                   <AnimatedProgressBar percentage={pillars.skills} colorClass="bg-emerald-500" />
-                </motion.div>
+                </div>
 
-                {/* 2. Projects */}
-                <motion.div 
-                  whileHover={{ scale: 1.02 }}
+                <div 
                   onClick={() => {
                     setActiveTab('practice');
                     setPracticeSubTab('project_blueprints');
                   }}
-                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition"
+                  className={`p-2.5 rounded-xl border space-y-1.5 cursor-pointer transition ${isDarkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200'}`}
                 >
                   <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-400 font-mono font-semibold">PROJECTS ({Math.round(weights.projects * 100)}%)</span>
+                    <span className="text-slate-400 font-mono font-semibold">PROJECTS</span>
                     <span className="font-bold text-amber-400 font-mono">
                       <AnimatedScoreCounter value={pillars.projects} />%
                     </span>
                   </div>
                   <AnimatedProgressBar percentage={pillars.projects} colorClass="bg-amber-500" />
-                </motion.div>
+                </div>
 
-                {/* 3. Resume */}
-                <motion.div 
-                  whileHover={{ scale: 1.02 }}
+                <div 
                   onClick={() => {
                     setActiveTab('analyze');
                     setAnalyzeSubTab('ats_resume');
                   }}
-                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition"
+                  className={`p-2.5 rounded-xl border space-y-1.5 cursor-pointer transition ${isDarkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200'}`}
                 >
                   <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-400 font-mono font-semibold">RESUME ({Math.round(weights.resume * 100)}%)</span>
+                    <span className="text-slate-400 font-mono font-semibold">RESUME</span>
                     <span className="font-bold text-indigo-400 font-mono">
                       <AnimatedScoreCounter value={pillars.resume} />%
                     </span>
                   </div>
                   <AnimatedProgressBar percentage={pillars.resume} colorClass="bg-indigo-500" />
-                </motion.div>
+                </div>
 
-                {/* 4. Interview */}
-                <motion.div 
-                  whileHover={{ scale: 1.02 }}
+                <div 
                   onClick={() => {
                     setActiveTab('practice');
                     setPracticeSubTab('mock_interview');
                   }}
-                  className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5 cursor-pointer hover:border-slate-700 transition"
+                  className={`p-2.5 rounded-xl border space-y-1.5 cursor-pointer transition ${isDarkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200'}`}
                 >
                   <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-400 font-mono font-semibold">INTERVIEW ({Math.round(weights.interview * 100)}%)</span>
+                    <span className="text-slate-400 font-mono font-semibold">INTERVIEW</span>
                     <span className="font-bold text-cyan-400 font-mono">
                       <AnimatedScoreCounter value={pillars.interview} />%
                     </span>
                   </div>
                   <AnimatedProgressBar percentage={pillars.interview} colorClass="bg-cyan-500" />
-                </motion.div>
+                </div>
               </div>
             </div>
 
-            {/* Quick Hub Launchers */}
+            {/* 4 Quick Hub Launchers */}
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
-                  setActiveTab('analyze');
-                  setAnalyzeSubTab('job_matcher');
+                  setActiveTab('tracker');
+                  setTrackerSubTab('daily_planner');
                 }}
-                className="bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3 rounded-2xl text-left flex items-start gap-2.5 group transition active:scale-95"
+                className={`p-3 rounded-2xl border text-left flex items-start gap-2.5 transition active:scale-95 ${
+                  isDarkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-850' : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
               >
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0 border border-indigo-500/30 group-hover:scale-105 transition">
-                  <FileSearch className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                  <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white">Job Matcher</h4>
-                  <p className="text-[10px] text-slate-400">Paste & evaluate JDs</p>
+                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Daily Planner</h4>
+                  <p className="text-[10px] text-slate-400">Time-boxed study blocks</p>
                 </div>
               </button>
 
               <button
                 onClick={() => {
-                  setActiveTab('tracker');
-                  setTrackerSubTab('opportunities');
+                  setActiveTab('analyze');
+                  setAnalyzeSubTab('github_auditor');
                 }}
-                className="bg-slate-900 hover:bg-slate-850 border border-slate-800 p-3 rounded-2xl text-left flex items-start gap-2.5 group transition active:scale-95"
+                className={`p-3 rounded-2xl border text-left flex items-start gap-2.5 transition active:scale-95 ${
+                  isDarkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-850' : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
               >
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-500/30 group-hover:scale-105 transition">
-                  <Briefcase className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center shrink-0 border border-slate-700">
+                  <Github className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white">Opportunities</h4>
-                  <p className="text-[10px] text-slate-400">{opportunities.length} matched roles</p>
+                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>GitHub Auditor</h4>
+                  <p className="text-[10px] text-slate-400">Score public repositories</p>
                 </div>
               </button>
             </div>
@@ -1091,43 +871,38 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
         {activeTab === 'analyze' && (
           <div className="space-y-3.5 animate-in fade-in duration-150">
             
-            {/* Sub-navigation */}
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={() => setAnalyzeSubTab('profiler')}
-                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  analyzeSubTab === 'profiler' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Career Profiler
-              </button>
-              <button
-                onClick={() => setAnalyzeSubTab('job_matcher')}
-                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  analyzeSubTab === 'job_matcher' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Job Matcher
-              </button>
-              <button
-                onClick={() => setAnalyzeSubTab('ats_resume')}
-                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  analyzeSubTab === 'ats_resume' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                ATS Resume
-              </button>
+            {/* Sub-navigation Pills */}
+            <div className={`flex p-1 rounded-xl border overflow-x-auto no-scrollbar gap-1 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              {[
+                { id: 'profiler', label: 'Career Profiler' },
+                { id: 'job_matcher', label: 'Job Matcher' },
+                { id: 'ats_resume', label: 'ATS Resume' },
+                { id: 'github_auditor', label: 'GitHub Audit' },
+                { id: 'linkedin_optimizer', label: 'LinkedIn' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setAnalyzeSubTab(tab.id as any)}
+                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg whitespace-nowrap transition ${
+                    analyzeSubTab === tab.id
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {/* SubTab 1: Career Profiler */}
             {analyzeSubTab === 'profiler' && (
-              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs shadow-md">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="font-bold text-white flex items-center gap-1.5">
-                    <Cpu className="w-4 h-4 text-indigo-400" /> Candidate Profile & Target Role
+              <div className={`p-4 rounded-2xl border space-y-3.5 text-xs shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                  <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
+                    <Cpu className="w-4 h-4 text-indigo-400" /> Candidate Profile & Target Career
                   </span>
-                  <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-mono font-bold">
-                    Telemetry
+                  <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full font-mono font-bold border border-indigo-500/20">
+                    Active Context
                   </span>
                 </div>
 
@@ -1139,7 +914,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                         type="text"
                         value={analyzerForm.targetRole}
                         onChange={e => setAnalyzerForm({ ...analyzerForm, targetRole: e.target.value })}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                       />
                     </div>
                     <div>
@@ -1148,37 +923,78 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                         type="text"
                         value={analyzerForm.targetCompany}
                         onChange={e => setAnalyzerForm({ ...analyzerForm, targetCompany: e.target.value })}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-400 block mb-1">College / University</label>
+                      <input
+                        type="text"
+                        value={analyzerForm.college}
+                        onChange={e => setAnalyzerForm({ ...analyzerForm, college: e.target.value })}
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-400 block mb-1">Degree & Major</label>
+                      <input
+                        type="text"
+                        value={analyzerForm.degree}
+                        onChange={e => setAnalyzerForm({ ...analyzerForm, degree: e.target.value })}
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[9px] font-bold text-slate-400 block mb-1">Current Technical Skills (Comma separated)</label>
+                    <label className="text-[9px] font-bold text-slate-400 block mb-1">Current Technical Skills (Comma-separated)</label>
                     <input
                       type="text"
                       value={analyzerForm.skills}
                       onChange={e => setAnalyzerForm({ ...analyzerForm, skills: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                      className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                     />
                   </div>
 
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-400 block mb-1">Programming Languages</label>
-                    <input
-                      type="text"
-                      value={analyzerForm.programmingLanguages}
-                      onChange={e => setAnalyzerForm({ ...analyzerForm, programmingLanguages: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
-                    />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-400 block mb-1">GitHub User</label>
+                      <input
+                        type="text"
+                        value={analyzerForm.github}
+                        onChange={e => setAnalyzerForm({ ...analyzerForm, github: e.target.value })}
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none font-mono ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-400 block mb-1">LinkedIn URL</label>
+                      <input
+                        type="text"
+                        value={analyzerForm.linkedin}
+                        onChange={e => setAnalyzerForm({ ...analyzerForm, linkedin: e.target.value })}
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none font-mono ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-400 block mb-1">LeetCode User</label>
+                      <input
+                        type="text"
+                        value={analyzerForm.leetcode}
+                        onChange={e => setAnalyzerForm({ ...analyzerForm, leetcode: e.target.value })}
+                        className={`w-full rounded-xl px-2.5 py-1.5 text-xs border outline-none font-mono ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
                   </div>
 
                   <button
                     onClick={handleSaveProfile}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 transition"
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Synchronize Profile & Recalculate Weights</span>
+                    <span>Synchronize Profile & Dynamic Readiness Engine</span>
                   </button>
                 </div>
               </div>
@@ -1191,41 +1007,42 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                 targetRole={profile.targetRole}
                 isDarkMode={isDarkMode}
                 demoMode={demoMode}
-                onAddSkillToPlan={(skill) => alert(`Added ${skill} to your learning planner.`)}
+                onAddSkillToPlan={(skill) => alert(`Added ${skill} to your personalized study planner.`)}
               />
             )}
 
             {/* SubTab 3: ATS Resume Scanner */}
             {analyzeSubTab === 'ats_resume' && (
-              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs shadow-md">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className={`p-4 rounded-2xl border space-y-3 text-xs shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                   <div>
-                    <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">ATS AI Engine</span>
-                    <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-indigo-400" /> ATS Resume Compatibility Scanner
+                    <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">ATS AI Scanner</span>
+                    <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
+                      <FileText className="w-4 h-4 text-indigo-400" /> ATS Compatibility & Keyword Engine
                     </h4>
                   </div>
                   <div className="text-right">
                     <span className="text-base font-black text-indigo-400 font-mono">{atsScore}/100</span>
-                    <span className="text-[8px] text-slate-400 block">Readiness Score</span>
+                    <span className="text-[8px] text-slate-400 block">ATS Score</span>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-[9px] font-bold text-slate-400">Pasted Resume Text for Real Parsing:</label>
+                    <label className="text-[9px] font-bold text-slate-400">Pasted Resume Text for Real ATS Parsing:</label>
                     <span className="text-[9px] text-indigo-400 font-mono">Role: {profile.targetRole}</span>
                   </div>
                   <textarea
                     rows={5}
                     value={resumeText}
                     onChange={e => setResumeText(e.target.value)}
-                    placeholder="Paste your real resume text here..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 leading-relaxed font-mono focus:outline-none focus:border-indigo-500"
+                    placeholder="Paste resume text here..."
+                    className={`w-full rounded-xl p-2.5 text-xs font-mono leading-relaxed outline-none border ${
+                      isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-200 focus:border-indigo-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600'
+                    }`}
                   />
                 </div>
 
-                {/* Primary AI Trigger Button */}
                 <button
                   onClick={handleRunAiResumeAnalysis}
                   disabled={isAnalyzing || !resumeText.trim()}
@@ -1234,138 +1051,66 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                   {isAnalyzing ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Analyzing Resume with Gemini AI...</span>
+                      <span>Parsing Resume with Gemini AI...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Run Live AI Resume Analysis</span>
+                      <span>Run Live ATS AI Analysis</span>
                     </>
                   )}
                 </button>
 
-                {/* Dynamic Analysis Results */}
-                {realAnalysisResult ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-2.5 pt-1"
-                  >
-                    {realAnalysisResult.error ? (
-                      <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-xl space-y-1 text-rose-300">
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-rose-400">
-                          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                          <span>AI Analysis Notice</span>
+                {realAnalysisResult && !realAnalysisResult.error && (
+                  <div className="space-y-2.5 pt-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/30 space-y-1">
+                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Detected Strengths ({realAnalysisResult.strengths.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {realAnalysisResult.strengths.map((str, i) => (
+                            <span key={i} className="text-[9px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">
+                              ✓ {str}
+                            </span>
+                          ))}
                         </div>
-                        <p className="text-[11px] leading-relaxed text-rose-200 font-medium">
-                          {realAnalysisResult.error}
-                        </p>
                       </div>
-                    ) : (
-                      <>
-                        {/* Strengths & Gaps Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/30 space-y-1.5">
-                            <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Detected Strengths ({realAnalysisResult.strengths.length})
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {realAnalysisResult.strengths.length > 0 ? (
-                                realAnalysisResult.strengths.map((str, i) => (
-                                  <span key={i} className="text-[9px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">
-                                    ✓ {str}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-[9px] text-slate-400 italic">No matching verified strengths found</span>
-                              )}
-                            </div>
-                          </div>
 
-                          <div className="bg-slate-950 p-2.5 rounded-xl border border-rose-500/30 space-y-1.5">
-                            <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
-                              <AlertCircle className="w-3.5 h-3.5" /> Skill Gaps ({realAnalysisResult.skill_gaps.length})
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-rose-500/30 space-y-1">
+                        <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> Missing Role Keywords ({realAnalysisResult.skill_gaps.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {realAnalysisResult.skill_gaps.map((gap, i) => (
+                            <span key={i} className="text-[9px] bg-rose-950/60 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 rounded font-mono">
+                              ▲ {gap}
                             </span>
-                            <div className="flex flex-wrap gap-1">
-                              {realAnalysisResult.skill_gaps.length > 0 ? (
-                                realAnalysisResult.skill_gaps.map((gap, i) => (
-                                  <span key={i} className="text-[9px] bg-rose-950/60 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 rounded font-mono">
-                                    ▲ {gap}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-[9px] text-slate-400 italic">No critical skill gaps identified</span>
-                              )}
-                            </div>
-                          </div>
+                          ))}
                         </div>
-
-                        {/* Recommended Skills */}
-                        {realAnalysisResult.recommended_skills?.length > 0 && (
-                          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
-                            <span className="text-[10px] font-bold text-indigo-300 font-mono">
-                              RECOMMENDED SKILLS TO BRIDGE GAPS:
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {realAnalysisResult.recommended_skills.map((rec, i) => (
-                                <span key={i} className="text-[9px] bg-indigo-950/50 text-indigo-200 border border-indigo-500/30 px-2 py-0.5 rounded-md font-mono">
-                                  + {rec}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Next Steps */}
-                        {realAnalysisResult.next_steps?.length > 0 && (
-                          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
-                            <span className="text-[10px] font-bold text-amber-400 font-mono">ACTIONABLE NEXT STEPS:</span>
-                            <ul className="space-y-1">
-                              {realAnalysisResult.next_steps.map((step, i) => (
-                                <li key={i} className="text-[10px] text-slate-300 flex items-start gap-1.5">
-                                  <ArrowRight className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
-                                  <span>{step}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Resume Bullets */}
-                        {realAnalysisResult.resume_bullets?.length > 0 && (
-                          <div className="bg-slate-950 p-2.5 rounded-xl border border-indigo-500/30 space-y-1.5">
-                            <span className="text-[10px] font-bold text-indigo-400 font-mono">
-                              GENERATED ATS RESUME BULLET POINTS:
-                            </span>
-                            {realAnalysisResult.resume_bullets.map((bullet, i) => (
-                              <div key={i} className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
-                                <p className="text-[10px] text-slate-200 italic font-mono flex-1">"{bullet}"</p>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(bullet);
-                                    setCopiedId(`bullet_${i}`);
-                                    setTimeout(() => setCopiedId(null), 2000);
-                                  }}
-                                  className="text-[9px] text-indigo-400 hover:text-indigo-300 p-1 shrink-0"
-                                >
-                                  {copiedId === `bullet_${i}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </motion.div>
-                ) : (
-                  <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-                    <span className="text-[10px] font-bold text-indigo-300 font-mono">READY TO SCAN:</span>
-                    <p className="text-[10px] text-slate-400">
-                      Click "Run Live AI Resume Analysis" above to parse skills, compute dynamic readiness score, and extract strengths and gaps with Gemini AI.
-                    </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
+            )}
+
+            {/* SubTab 4: GitHub Auditor */}
+            {analyzeSubTab === 'github_auditor' && (
+              <GitHubAnalyzerView
+                initialUsername={profile.github || 'alexchen-dev'}
+                isDarkMode={isDarkMode}
+                onUpdateGithubUsername={(u) => setProfile(p => ({ ...p, github: u }))}
+              />
+            )}
+
+            {/* SubTab 5: LinkedIn Optimizer */}
+            {analyzeSubTab === 'linkedin_optimizer' && (
+              <LinkedInAnalyzerView
+                initialProfileUrl={profile.linkedin || 'alex-chen-tech'}
+                targetRole={profile.targetRole}
+                isDarkMode={isDarkMode}
+              />
             )}
           </div>
         )}
@@ -1377,22 +1122,30 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
           <div className="space-y-3.5 animate-in fade-in duration-150">
             
             {/* Sub-navigation */}
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <button
                 onClick={() => setRoadmapSubTab('stages')}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  roadmapSubTab === 'stages' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  roadmapSubTab === 'stages' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                7-Stage Plan ({roadmapPercent}%)
+                Dynamic Plan ({roadmapPercent}%)
+              </button>
+              <button
+                onClick={() => setRoadmapSubTab('skill_gap_matrix')}
+                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
+                  roadmapSubTab === 'skill_gap_matrix' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Skill Gap Matrix
               </button>
               <button
                 onClick={() => setRoadmapSubTab('evidence_matrix')}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  roadmapSubTab === 'evidence_matrix' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  roadmapSubTab === 'evidence_matrix' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Skill Evidence Matrix
+                Evidence Matrix
               </button>
             </div>
 
@@ -1404,8 +1157,8 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                   const stageDoneCount = stage.tasks.filter(t => t.completed).length;
 
                   return (
-                    <div key={stage.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 transition hover:border-slate-700 shadow-sm">
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div key={stage.id} className={`p-3.5 rounded-2xl border space-y-2.5 shadow-sm ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                      <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
                         <div className="flex items-center gap-2">
                           <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
                             stageCompleted 
@@ -1415,7 +1168,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                             {stageCompleted ? '✓' : idx + 1}
                           </div>
                           <div>
-                            <h4 className="text-xs font-bold text-white">{stage.title}</h4>
+                            <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{stage.title}</h4>
                             <p className="text-[10px] text-slate-400">{stage.subtitle}</p>
                           </div>
                         </div>
@@ -1424,8 +1177,8 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                         </span>
                       </div>
 
-                      {/* Interactive Tasks Checklist */}
-                      <div className="space-y-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                      {/* Interactive Tasks */}
+                      <div className="space-y-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
                         {stage.tasks.map(task => (
                           <div
                             key={task.id}
@@ -1455,6 +1208,15 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
               </div>
             )}
 
+            {/* Skill Gap Matrix */}
+            {roadmapSubTab === 'skill_gap_matrix' && (
+              <SkillGapMatrixView
+                targetRole={profile.targetRole}
+                userSkills={profile.currentSkills}
+                isDarkMode={isDarkMode}
+              />
+            )}
+
             {/* Skill Evidence Matrix */}
             {roadmapSubTab === 'evidence_matrix' && (
               <SkillEvidenceMatrix
@@ -1472,37 +1234,45 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
         )}
 
         {/* ==================================================== */}
-        {/* 4. PRACTICE TAB (INTERVIEW + PROJECTS) */}
+        {/* 4. PRACTICE TAB */}
         {/* ==================================================== */}
         {activeTab === 'practice' && (
           <div className="space-y-3.5 animate-in fade-in duration-150">
             
             {/* Sub-navigation */}
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <button
                 onClick={() => setPracticeSubTab('mock_interview')}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  practiceSubTab === 'mock_interview' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  practiceSubTab === 'mock_interview' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Mock Interview Coach
+                Mock Interview
               </button>
               <button
                 onClick={() => setPracticeSubTab('project_blueprints')}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  practiceSubTab === 'project_blueprints' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  practiceSubTab === 'project_blueprints' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Gap-Bridging Projects
+                Project Blueprints
+              </button>
+              <button
+                onClick={() => setPracticeSubTab('learning_engine')}
+                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
+                  practiceSubTab === 'learning_engine' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Curriculum
               </button>
             </div>
 
             {/* Mock Interview */}
             {practiceSubTab === 'mock_interview' && (
               <div className="space-y-3.5 text-xs">
-                <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-2.5 shadow-md">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="font-bold text-white flex items-center gap-1.5">
+                <div className={`p-3.5 rounded-2xl border space-y-2.5 shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
                       <MessageSquare className="w-4 h-4 text-purple-400" /> 4-Dimension Interview Evaluation
                     </span>
                     <span className="text-[9px] bg-purple-500/20 text-purple-300 font-mono px-2 py-0.5 rounded-full font-bold">
@@ -1533,9 +1303,9 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                 </div>
 
                 {filteredQuestions[activeQuestionIdx] && (
-                  <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-3 shadow-md">
+                  <div className={`p-3.5 rounded-2xl border space-y-3 shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div>
-                      <h4 className="text-xs font-bold text-white leading-snug">
+                      <h4 className={`text-xs font-bold leading-snug ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                         "{filteredQuestions[activeQuestionIdx].question}"
                       </h4>
                       <p className="text-[10px] text-slate-400 mt-1 bg-slate-950 p-2 rounded-xl border border-slate-800">
@@ -1549,7 +1319,9 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                         rows={4}
                         value={candidateAnswer}
                         onChange={e => setCandidateAnswer(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-purple-500"
+                        className={`w-full rounded-xl p-2.5 text-xs leading-relaxed outline-none border ${
+                          isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-200 focus:border-purple-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-purple-600'
+                        }`}
                         placeholder="State your answer with technical clarity or STAR format..."
                       />
                     </div>
@@ -1571,7 +1343,6 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                       </button>
                     </div>
 
-                    {/* 4-Dimension Feedback Card */}
                     {interviewFeedback && (
                       <motion.div
                         initial={{ opacity: 0, y: 8 }}
@@ -1585,7 +1356,6 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                           </span>
                         </div>
 
-                        {/* 4 Dimensions Grid */}
                         <div className="grid grid-cols-2 gap-2 text-[9px] font-mono">
                           <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
                             <span className="text-slate-400 block">Correctness</span>
@@ -1619,8 +1389,8 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
             {/* Gap-Bridging Project Blueprints */}
             {practiceSubTab === 'project_blueprints' && (
               <div className="space-y-3">
-                {DEFAULT_PROJECT_ITEMS.map(proj => (
-                  <div key={proj.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+                {projectItems.map(proj => (
+                  <div key={proj.id} className={`p-3.5 rounded-2xl border space-y-2.5 shadow-sm ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-1.5 mb-1">
@@ -1633,7 +1403,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                             </span>
                           )}
                         </div>
-                        <h4 className="text-xs font-bold text-white">{proj.title}</h4>
+                        <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{proj.title}</h4>
                       </div>
                     </div>
 
@@ -1641,9 +1411,13 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
 
                     <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-slate-400 font-mono">RESUME BULLET:</span>
+                        <span className="text-[9px] font-bold text-slate-400 font-mono">GOOGLE XYZ RESUME BULLET:</span>
                         <button
-                          onClick={() => handleCopy(proj.id, proj.resumeBullet)}
+                          onClick={() => {
+                            navigator.clipboard.writeText(proj.resumeBullet);
+                            setCopiedId(proj.id);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }}
                           className="text-[9px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 font-semibold"
                         >
                           {copiedId === proj.id ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
@@ -1656,34 +1430,59 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                 ))}
               </div>
             )}
+
+            {/* Learning Engine */}
+            {practiceSubTab === 'learning_engine' && (
+              <LearningEngineView
+                targetRole={profile.targetRole}
+                isDarkMode={isDarkMode}
+                onAwardXP={handleAwardXP}
+              />
+            )}
           </div>
         )}
 
         {/* ==================================================== */}
-        {/* 5. TRACKER TAB (OPPORTUNITIES & PIPELINE) */}
+        {/* 5. TRACKER TAB */}
         {/* ==================================================== */}
         {activeTab === 'tracker' && (
           <div className="space-y-3.5 animate-in fade-in duration-150">
             
             {/* Sub-navigation */}
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <button
+                onClick={() => setTrackerSubTab('daily_planner')}
+                className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
+                  trackerSubTab === 'daily_planner' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Daily Planner
+              </button>
               <button
                 onClick={() => setTrackerSubTab('opportunities')}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  trackerSubTab === 'opportunities' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  trackerSubTab === 'opportunities' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Matched Opportunities ({opportunities.length})
+                Opportunities ({opportunities.length})
               </button>
               <button
                 onClick={() => setTrackerSubTab('pipeline')}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${
-                  trackerSubTab === 'pipeline' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  trackerSubTab === 'pipeline' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Application Pipeline ({applications.length})
+                Pipeline ({applications.length})
               </button>
             </div>
+
+            {trackerSubTab === 'daily_planner' && (
+              <DailyCareerPlannerView
+                streak={profile.streak}
+                isDarkMode={isDarkMode}
+                onAwardXP={handleAwardXP}
+              />
+            )}
 
             {trackerSubTab === 'opportunities' && (
               <OpportunityMatchingView
@@ -1706,7 +1505,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
         )}
 
         {/* ==================================================== */}
-        {/* 6. PROFILE & PRIVACY TAB */}
+        {/* 6. PROFILE TAB */}
         {/* ==================================================== */}
         {activeTab === 'profile' && (
           <div className="space-y-3.5 animate-in fade-in duration-150 text-xs">
@@ -1720,28 +1519,28 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
             )}
 
             {/* Candidate Header Card */}
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-md">
+            <div className={`p-4 rounded-2xl border space-y-3 shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-500/20">
                   {profile.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">{profile.name}</h3>
-                  <p className="text-[11px] text-indigo-300">{profile.targetRole} &bull; {profile.targetCompany}</p>
-                  <p className="text-[10px] text-slate-400">{profile.college}</p>
+                  <h3 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{profile.name}</h3>
+                  <p className="text-[11px] text-indigo-400 font-semibold">{profile.targetRole} &bull; {profile.targetCompany}</p>
+                  <p className="text-[10px] text-slate-400">{profile.college} &bull; {profile.degree}</p>
                 </div>
               </div>
             </div>
 
-            {/* Gemini API Key Configuration Card */}
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-md">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            {/* Gemini API Key Card */}
+            <div className={`p-4 rounded-2xl border space-y-3 shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
                     <Key className="w-4 h-4 text-amber-300" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">Google Gemini API Configuration</h4>
+                    <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Google Gemini API Configuration</h4>
                     <p className="text-[10px] text-slate-400">Enables live ATS analysis, mock interview grading & copilot</p>
                   </div>
                 </div>
@@ -1750,7 +1549,7 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
                     : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                 }`}>
-                  {isOnline ? '● ONLINE (Gemini Live)' : '○ OFFLINE (Demo Data)'}
+                  {isOnline ? '● ONLINE (Live)' : '○ OFFLINE (Demo Data)'}
                 </span>
               </div>
 
@@ -1762,32 +1561,17 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
                     value={apiKeyInput}
                     onChange={e => setApiKeyInput(e.target.value)}
                     placeholder="Enter AIzaSy..."
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                    className={`flex-1 rounded-xl px-3 py-1.5 text-xs font-mono border outline-none ${
+                      isDarkMode ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600'
+                    }`}
                   />
                   <button
                     onClick={handleSaveApiKey}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-sm"
                   >
                     {isApiKeySaved ? 'Saved!' : 'Save Key'}
                   </button>
-                  {apiKeyInput && (
-                    <button
-                      onClick={() => {
-                        setApiKeyInput('');
-                        AIService.setApiKey('');
-                        setIsOnline(false);
-                        setDemoMode(true);
-                      }}
-                      className="bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 px-2.5 py-1.5 rounded-xl text-xs transition"
-                      title="Clear API Key"
-                    >
-                      Clear
-                    </button>
-                  )}
                 </div>
-                <p className="text-[9px] text-slate-500 mt-1">
-                  Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">Google AI Studio</a>. Keys are stored locally in your browser sandbox.
-                </p>
               </div>
             </div>
 
@@ -1795,23 +1579,27 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={handleExportData}
-                className="bg-slate-900 border border-slate-800 hover:border-indigo-500/40 p-3 rounded-2xl flex items-center gap-2.5 text-left transition"
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left transition ${
+                  isDarkMode ? 'bg-slate-900 border-slate-800 hover:border-indigo-500/40' : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
               >
                 <Download className="w-4 h-4 text-indigo-400 shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-white">Export Data</h4>
-                  <p className="text-[10px] text-slate-400">Download JSON backup</p>
+                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Export Data</h4>
+                  <p className="text-[10px] text-slate-400">Download JSON snapshot</p>
                 </div>
               </button>
 
               <button
                 onClick={() => setShowPrivacyModal(true)}
-                className="bg-slate-900 border border-slate-800 hover:border-emerald-500/40 p-3 rounded-2xl flex items-center gap-2.5 text-left transition"
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left transition ${
+                  isDarkMode ? 'bg-slate-900 border-slate-800 hover:border-emerald-500/40' : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
               >
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-white">Privacy Controls</h4>
-                  <p className="text-[10px] text-slate-400">Data deletion & sandbox</p>
+                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Privacy Controls</h4>
+                  <p className="text-[10px] text-slate-400">Telemetry & data purge</p>
                 </div>
               </button>
             </div>
@@ -1819,30 +1607,18 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
         )}
       </main>
 
-      {/* "Why this score?" Diagnosis Modal */}
-      <ScoreDiagnosisModal
+      {/* Comprehensive 9-Pillar Diagnosis Modal */}
+      <ComprehensiveReadinessModal
         isOpen={showDiagnosisModal}
         onClose={() => setShowDiagnosisModal(false)}
         overallScore={readinessOverall}
         targetRole={profile.targetRole}
-        targetCompany={profile.targetCompany}
-        pillars={pillars}
-        weights={weights}
-        biggestGap={{
-          skill: 'Docker Multi-Stage Containerization',
-          reason: 'Docker was not detected in your available profile evidence. Production containerization is required for standard technical screening.',
-          impact: '+12% Role Alignment Score upon project completion'
-        }}
-        nextBestAction={{
-          title: 'Containerize FastAPI Inference Service in Docker',
-          route: 'practice',
-          description: 'Follow the step-by-step project blueprint to write a multi-stage Dockerfile and achieve sub-180MB image footprint.'
-        }}
-        onNavigateAction={(route) => {
-          if (route === 'practice') {
-            setActiveTab('practice');
-            setPracticeSubTab('project_blueprints');
-          }
+        breakdown={readinessDiagnosis.breakdown}
+        weakestArea={readinessDiagnosis.weakestArea}
+        nextBestAction={readinessDiagnosis.nextBestAction}
+        isDarkMode={isDarkMode}
+        onNavigateToTab={(tab) => {
+          setActiveTab(tab as any);
         }}
       />
 
@@ -1855,91 +1631,27 @@ Answer concisely in 2-3 structured sentences with actionable bullet points.`;
         onExportData={handleExportData}
       />
 
-      {/* Floating AI Copilot Trigger */}
+      {/* Persistent AI Career Assistant Copilot Modal */}
+      <AiCareerAssistantModal
+        isOpen={showAiCopilot}
+        onClose={() => setShowAiCopilot(false)}
+        targetRole={profile.targetRole}
+        candidateName={profile.name}
+        currentSkills={profile.currentSkills}
+        isDarkMode={isDarkMode}
+        onNavigateToTab={(tab) => {
+          setActiveTab(tab as any);
+        }}
+      />
+
+      {/* Floating AI Copilot Trigger Button */}
       <button
-        onClick={() => setShowAiCopilot(!showAiCopilot)}
+        onClick={() => setShowAiCopilot(true)}
         className="absolute right-4 bottom-14 z-30 w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-xl shadow-indigo-600/40 border border-white/20 flex items-center justify-center hover:scale-105 active:scale-95 transition"
         title="Open AI Career Copilot"
       >
         <Sparkles className="w-5 h-5 text-amber-300" />
       </button>
-
-      {/* Floating AI Copilot Modal */}
-      {showAiCopilot && (
-        <div className="absolute inset-x-2 bottom-16 top-12 z-40 bg-slate-950/95 backdrop-blur-md rounded-3xl border border-indigo-500/40 p-3.5 flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-white">CareerPilot AI Copilot</h3>
-                <p className="text-[9px] text-indigo-300">Context: {profile.targetRole} ({readinessOverall}/100 ⚡)</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowAiCopilot(false)}
-              className="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-900 rounded-lg border border-slate-800"
-            >
-              Close
-            </button>
-          </div>
-
-          <div className="flex gap-1 overflow-x-auto pb-1.5 no-scrollbar shrink-0">
-            {[
-              "What should I learn next?",
-              "How to improve my resume?",
-              "Recommend a capstone project",
-              "Am I ready for Google?"
-            ].map(chip => (
-              <button
-                key={chip}
-                onClick={() => handleSendCopilot(chip)}
-                className="text-[9px] bg-slate-900 hover:bg-indigo-950 border border-slate-800 hover:border-indigo-500/50 text-slate-200 px-2 py-1 rounded-full whitespace-nowrap transition shrink-0"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 p-1 text-xs font-sans">
-            {copilotMessages.map((m, idx) => (
-              <div
-                key={idx}
-                className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${
-                  m.sender === 'user'
-                    ? 'ml-auto bg-indigo-600 text-white rounded-br-none'
-                    : 'mr-auto bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
-                }`}
-              >
-                {m.text}
-              </div>
-            ))}
-            {isCopilotThinking && (
-              <div className="p-2 rounded-2xl bg-slate-900 border border-slate-800 text-indigo-300 mr-auto flex items-center gap-1.5 text-xs">
-                <RefreshCw className="w-3 h-3 animate-spin" /> Thinking...
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2 flex gap-1.5">
-            <input
-              type="text"
-              value={copilotInput}
-              onChange={e => setCopilotInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSendCopilot()}
-              placeholder="Ask career question..."
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-            />
-            <button
-              onClick={() => handleSendCopilot()}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-xl shrink-0"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Bottom Navigation */}
       <nav className={`${isDarkMode ? 'bg-slate-950 border-slate-800/80' : 'bg-white border-slate-200'} border-t px-2 py-1.5 flex justify-around items-center shrink-0 z-20`}>

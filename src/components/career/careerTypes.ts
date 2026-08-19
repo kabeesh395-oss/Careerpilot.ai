@@ -1,5 +1,33 @@
 export type CareerEnergyTier = 'danger' | 'average' | 'good' | 'gold';
 
+export type SkillGapStatus = 'strong' | 'needs_improvement' | 'missing' | 'advanced';
+
+export interface SkillGapItem {
+  id: string;
+  name: string;
+  category: string;
+  status: SkillGapStatus;
+  whyItMatters: string;
+  recommendedOrder: number;
+  practiceTask: string;
+  projectIdea: string;
+  learningResource: string;
+  milestone: string;
+  currentProficiency: number; // 0 - 100
+}
+
+export interface ComprehensiveReadinessBreakdown {
+  technicalSkills: number; // 0 - 100
+  dsa: number; // 0 - 100
+  projects: number; // 0 - 100
+  resume: number; // 0 - 100
+  github: number; // 0 - 100
+  linkedin: number; // 0 - 100
+  aptitude: number; // 0 - 100
+  communication: number; // 0 - 100
+  interview: number; // 0 - 100
+}
+
 export interface CareerPillars {
   skills: number; // 0 - 100
   projects: number; // 0 - 100
@@ -29,7 +57,7 @@ export interface DailyMission {
   title: string;
   estimatedMinutes: number;
   whyItMatters: string;
-  pillar: 'Skills' | 'Projects' | 'Resume' | 'Interview';
+  pillar: 'Skills' | 'Projects' | 'Resume' | 'Interview' | 'DSA' | 'Aptitude';
   completed: boolean;
   xpReward: number;
   actionRoute: string;
@@ -97,4 +125,68 @@ export interface EnhancedInterviewFeedback {
   mostImportantImprovement: string;
   recommendedPracticeTopic: string;
   benchmarkModelAnswer: string;
+}
+
+export interface GitHubAuditResult {
+  username: string;
+  totalRepos: number;
+  analyzedAt: string;
+  overallScore: number; // 0 - 100
+  languagesDetected: string[];
+  portfolioStrength: 'Beginner' | 'Intermediate' | 'Production-Ready';
+  readmeQualityScore: number; // 0 - 100
+  commitCadenceScore: number; // 0 - 100
+  projectComplexityScore: number; // 0 - 100
+  keyFindings: string[];
+  recommendedImprovements: string[];
+  flagshipRepoSuggestion: string;
+}
+
+export interface LinkedInAuditResult {
+  profileUrlOrUsername: string;
+  completenessScore: number; // 0 - 100
+  headlineScore: number; // 0 - 100
+  aboutScore: number; // 0 - 100
+  skillsScore: number; // 0 - 100
+  headlineCritique: string;
+  recommendedHeadlines: string[];
+  aboutCritique: string;
+  recommendedAboutTemplate: string;
+  actionableChecklist: { task: string; done: boolean; impact: string }[];
+}
+
+export interface LearningResource {
+  id: string;
+  title: string;
+  category: 'Programming' | 'DSA' | 'AI/ML' | 'Data Science' | 'Web Development' | 'Cloud & DevOps' | 'Cybersecurity' | 'Aptitude' | 'Communication & Interviews';
+  platform: string;
+  instructorOrOrg: string;
+  pricing: 'FREE' | 'PAID' | 'FREEMIUM';
+  certification: 'CERTIFICATE AVAILABLE' | 'NO CERTIFICATE';
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  estimatedHours: number;
+  rating: number;
+  url: string;
+  summary: string;
+  skillsTaught: string[];
+  whyRecommended: string;
+}
+
+export interface DailyStudyBlock {
+  id: string;
+  timeSlot: string; // e.g. "30 min"
+  category: 'DSA' | 'Technical Skill' | 'Project Development' | 'Aptitude' | 'Interview Practice';
+  title: string;
+  description: string;
+  targetGoal: string;
+  status: 'pending' | 'completed' | 'skipped';
+  xp: number;
+}
+
+export interface AiChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  actionLinks?: { label: string; tab: string; subTab?: string }[];
 }

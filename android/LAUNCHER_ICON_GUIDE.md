@@ -1,6 +1,6 @@
 # CareerPilot AI — Android Launcher Icon Guide
 
-This directory and the accompanying XML drawable assets configure the custom **CareerPilot AI** adaptive launcher icon for Android devices.
+This guide describes how the custom **CareerPilot AI** adaptive launcher icon is configured for Android devices.
 
 ---
 
@@ -22,7 +22,7 @@ Modern Android uses **Adaptive Icons** composed of two distinct 108dp × 108dp l
 
 ## 📐 2. Density Reference Chart (For Legacy Raster Icons)
 
-If you need to generate pre-rendered PNG bitmaps for legacy Android versions (API < 26) or legacy OEM home screens, use the densities below:
+If you need to generate pre-rendered PNG bitmaps for legacy Android versions (API < 26) or legacy OEM home screens:
 
 | Density Folder | Total Size (108dp canvas) | Safe Zone (66dp center) | Legacy Icon Size (48dp) |
 | :--- | :--- | :--- | :--- |
@@ -36,11 +36,9 @@ If you need to generate pre-rendered PNG bitmaps for legacy Android versions (AP
 
 ## 🛠️ 3. Generating New Icons from `logo-final.svg` in Android Studio
 
-If you want to re-export or modify the launcher icon using Android Studio's Asset Studio:
-
 1. Open the project in **Android Studio**.
 2. In the Project pane, right-click on the `app/src/main/res/` directory.
-3. Select **New &rarr; Image Asset**.
+3. Select **New → Image Asset**.
 4. Choose **Launcher Icons (Adaptive and Legacy)**.
 5. In **Foreground Layer**:
    - Source Asset: **Image** or **SVG**.

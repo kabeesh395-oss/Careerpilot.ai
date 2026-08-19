@@ -238,6 +238,105 @@ export const DEFAULT_APPLICATIONS: TrackedApplication[] = [
   }
 ];
 
+export const DEFAULT_PROFILE = {
+  name: 'Alex Chen',
+  college: 'University of California, Berkeley',
+  degree: 'B.S. Computer Science & Data Science',
+  department: 'EECS',
+  year: 'Junior (Class of 2027)',
+  currentSkills: ['Python', 'SQL', 'FastAPI', 'Pandas', 'PyTorch (Basics)', 'Git', 'Linux'],
+  programmingLanguages: ['Python', 'C++', 'SQL'],
+  interests: ['Machine Learning', 'Backend Systems', 'Distributed Computing'],
+  experienceLevel: 'Student / Aspiring Intern',
+  targetRole: 'Machine Learning Engineer',
+  targetCompany: 'Google DeepMind / Anthropic',
+  github: 'alexchen-dev',
+  linkedin: 'alex-chen-tech',
+  leetcode: 'alex_coder',
+  streak: 12,
+  xp: 1420
+};
+
+export const DEFAULT_STAGES = [
+  {
+    id: 'stage_1',
+    title: 'Stage 1: Core Foundations & Algorithms',
+    subtitle: 'Master fundamental data structures, memory layouts & computational complexity',
+    duration: '2 Weeks',
+    completed: true,
+    tasks: [
+      { id: 't_1_1', title: 'Complete Top 50 LeetCode Patterns (Binary Search, Two Pointers, Trees)', completed: true },
+      { id: 't_1_2', title: 'Implement HashMaps, LRU Cache & Graph Traversals in pure Python/C++', completed: true },
+      { id: 't_1_3', title: 'Study Big-O space/time complexity and memory hierarchy caches', completed: true }
+    ],
+    project: 'CLI High-Throughput In-Memory Key-Value Store'
+  },
+  {
+    id: 'stage_2',
+    title: 'Stage 2: Systems Architecture & REST Services',
+    subtitle: 'Design performant backend microservices with asynchronous concurrency',
+    duration: '2-3 Weeks',
+    completed: true,
+    tasks: [
+      { id: 't_2_1', title: 'Build asynchronous REST API with FastAPI, Pydantic & Dependency Injection', completed: true },
+      { id: 't_2_2', title: 'Design PostgreSQL schema with composite indexes and explain query plans', completed: true },
+      { id: 't_2_3', title: 'Integrate Redis for sub-millisecond session caching and token bucket rate-limiting', completed: false }
+    ],
+    project: 'FastAPI Production Inference Gateway with Redis Caching'
+  },
+  {
+    id: 'stage_3',
+    title: 'Stage 3: Applied AI & Vector Search Retrieval',
+    subtitle: 'Construct production Retrieval-Augmented Generation (RAG) pipelines',
+    duration: '3 Weeks',
+    completed: false,
+    tasks: [
+      { id: 't_3_1', title: 'Generate embeddings with sentence-transformers and index inside ChromaDB/Qdrant', completed: false },
+      { id: 't_3_2', title: 'Build Hybrid Keyword (BM25) + Semantic Vector Search with Reciprocal Rank Fusion', completed: false },
+      { id: 't_3_3', title: 'Implement contextual re-ranking with Cohere/BGE cross-encoders', completed: false }
+    ],
+    project: 'Autonomous Document RAG with Hybrid Search & Semantic Chunking'
+  },
+  {
+    id: 'stage_4',
+    title: 'Stage 4: Containerization, DevOps & MLOps',
+    subtitle: 'Deploy scalable inference microservices with Docker, CI/CD, and metrics telemetry',
+    duration: '2-3 Weeks',
+    completed: false,
+    tasks: [
+      { id: 't_4_1', title: 'Write multi-stage Dockerfile minimizing image footprint (<150MB)', completed: false },
+      { id: 't_4_2', title: 'Setup GitHub Actions CI pipeline running pytest, ruff linter & security scans', completed: false },
+      { id: 't_4_3', title: 'Instrument Prometheus metrics (P99 latency, throughput) and Grafana dashboard', completed: false }
+    ],
+    project: 'Production Containerized Inference Engine with CI/CD & Latency Tracking'
+  }
+];
+
+export const DEFAULT_PROJECT_ITEMS = [
+  {
+    id: 'proj_1',
+    title: 'Production RAG Search Engine with Hybrid Retrieval',
+    difficulty: 'Intermediate',
+    technologies: ['Python', 'FastAPI', 'ChromaDB', 'Sentence-Transformers', 'Docker'],
+    description: 'A modular retrieval engine featuring hybrid semantic + BM25 search, semantic chunking, and reciprocal rank fusion for real-time document QA.',
+    careerValue: 'Demonstrates modern AI engineering, vector database indexing, sub-100ms latency search, and clean microservice architecture.',
+    duration: '2 Weeks',
+    resumeBullet: 'Architected a hybrid vector-keyword retrieval engine using FastAPI and ChromaDB, reducing document query hallucination by 42% and achieving sub-85ms search latency across 100k chunks.',
+    bridgesGap: 'Vector Databases & Semantic Search'
+  },
+  {
+    id: 'proj_2',
+    title: 'Distributed Stream Analytics & Real-Time Fraud Classifier',
+    difficulty: 'Advanced',
+    technologies: ['Python', 'Kafka', 'Redis', 'Docker', 'XGBoost', 'MLflow'],
+    description: 'An event-driven machine learning pipeline that consumes real-time streaming transaction feeds and evaluates fraud likelihood with P99 < 40ms.',
+    careerValue: 'Tier-1 FAANG-ready capstone showcasing distributed systems, event streams, caching, and production ML monitoring.',
+    duration: '3-4 Weeks',
+    resumeBullet: 'Engineered an end-to-end streaming fraud detection pipeline with XGBoost and MLflow, attaining 96.8% ROC-AUC on 2M synthetic transactions with sub-40ms P99 inference latency.',
+    bridgesGap: 'Distributed Systems & MLOps'
+  }
+];
+
 export const SAMPLE_JOB_DESCRIPTIONS = [
   {
     title: 'Google - ML Engineering Intern (2026)',
