@@ -698,5 +698,101 @@ Actively seeking software engineering and ${targetRole} internship opportunities
         whyRecommended: 'Essential study material for cracking system design and technical architectural rounds.'
       }
     ];
+  },
+
+  // 8. CAREER DISCOVERY MODE (For unsure or beginner students)
+  getDiscoveredCareers: (interests: string[] = [], skills: string[] = []): {
+    role: string;
+    tagline: string;
+    suitabilityScore: number;
+    whyGoodFit: string;
+    starterStack: string[];
+    firstMiniProject: string;
+    timeToFirstJob: string;
+  }[] => {
+    const combined = [...interests, ...skills].map(s => s.toLowerCase());
+
+    const isAiInterest = combined.some(s => s.includes('ai') || s.includes('ml') || s.includes('python') || s.includes('data') || s.includes('math') || s.includes('intelligence'));
+    const isWebInterest = combined.some(s => s.includes('web') || s.includes('frontend') || s.includes('design') || s.includes('javascript') || s.includes('react') || s.includes('app') || s.includes('html'));
+    const isBackendInterest = combined.some(s => s.includes('backend') || s.includes('system') || s.includes('api') || s.includes('database') || s.includes('sql') || s.includes('server'));
+    const isCloudInterest = combined.some(s => s.includes('cloud') || s.includes('devops') || s.includes('linux') || s.includes('docker') || s.includes('infrastructure'));
+    const isDataInterest = combined.some(s => s.includes('analyst') || s.includes('analytics') || s.includes('visualization') || s.includes('excel') || s.includes('bi'));
+
+    return [
+      {
+        role: 'Full Stack Web Developer',
+        tagline: 'Build end-to-end web applications with modern frontend & backend frameworks',
+        suitabilityScore: isWebInterest ? 92 : 84,
+        whyGoodFit: 'High demand, visual feedback on what you build, and zero prerequisites needed to build your first portfolio site.',
+        starterStack: ['JavaScript / TypeScript', 'React', 'Node.js / Express', 'Tailwind CSS', 'PostgreSQL'],
+        firstMiniProject: 'Interactive Task & Habit Tracker with Local Storage',
+        timeToFirstJob: '3 - 5 Months'
+      },
+      {
+        role: 'AI / Machine Learning Engineer',
+        tagline: 'Design, train, and deploy AI models, LLM agents & intelligent APIs',
+        suitabilityScore: isAiInterest ? 95 : 80,
+        whyGoodFit: 'Cutting-edge industry growth, high impact, and strong overlap with Python data structures and modern RAG frameworks.',
+        starterStack: ['Python', 'FastAPI', 'PyTorch / HuggingFace', 'ChromaDB (Vector Search)', 'Docker'],
+        firstMiniProject: 'PDF Document Q&A Assistant with Semantic Vector Search',
+        timeToFirstJob: '4 - 6 Months'
+      },
+      {
+        role: 'Backend & Cloud Systems Engineer',
+        tagline: 'Architect high-throughput microservices, databases & cloud infrastructure',
+        suitabilityScore: (isBackendInterest || isCloudInterest) ? 90 : 78,
+        whyGoodFit: 'Deep focus on core programming, databases, and system reliability with steady campus hiring.',
+        starterStack: ['Python or Go', 'FastAPI / Gin', 'PostgreSQL', 'Redis', 'Docker Containerization'],
+        firstMiniProject: 'URL Shortener with Sub-10ms Redis Caching & Rate Limiting',
+        timeToFirstJob: '3 - 5 Months'
+      },
+      {
+        role: 'Data Analyst & Business Intelligence',
+        tagline: 'Transform raw data into actionable dashboards and automated insights',
+        suitabilityScore: isDataInterest ? 93 : 75,
+        whyGoodFit: 'Fastest ramp-up for freshers. Focuses on SQL, Python data wrangling, and metric storytelling.',
+        starterStack: ['SQL', 'Python (Pandas, NumPy)', 'PowerBI / Tableau', 'Statistics Foundations'],
+        firstMiniProject: 'E-commerce Customer Retention & Revenue Analytics Dashboard',
+        timeToFirstJob: '2 - 4 Months'
+      }
+    ];
+  },
+
+  // 9. GENERATE FRESH USER INITIAL SNAPSHOT
+  generateFreshUserSnapshot: (profile: any) => {
+    const isZeroExp = !profile.currentSkills?.length || profile.experienceLevel === 'Zero Experience' || profile.currentSkills.every((s: string) => s.toLowerCase() === 'none' || s.toLowerCase() === 'beginner');
+    const targetRole = profile.targetRole || 'Full Stack Web Developer';
+    const skills = profile.currentSkills || [];
+
+    const readiness = CareerRecommendationEngine.calculateReadiness(profile, skills);
+    const skillGaps = CareerRecommendationEngine.getSkillGapMatrix(targetRole, skills);
+    const roadmap = CareerRecommendationEngine.getDynamicRoadmap(targetRole);
+    const projects = CareerRecommendationEngine.getRecommendedProjects(targetRole);
+
+    const strongSkills = skillGaps.filter(s => s.status === 'strong').map(s => s.name);
+    const missingSkills = skillGaps.filter(s => s.status === 'missing').map(s => s.name);
+
+    let skillLevel: 'Beginner' | 'Intermediate' | 'Advanced' = 'Beginner';
+    if (skills.length >= 6 && readiness.overallScore >= 75) skillLevel = 'Advanced';
+    else if (skills.length >= 3 && readiness.overallScore >= 50) skillLevel = 'Intermediate';
+
+    return {
+      isZeroExp,
+      targetRole,
+      skillLevel,
+      readinessScore: readiness.overallScore,
+      breakdown: readiness.breakdown,
+      strongSkills: strongSkills.length > 0 ? strongSkills : ['Fast Learner', 'Computer Fundamentals'],
+      skillGaps: missingSkills.slice(0, 4),
+      firstProject: projects[0] || {
+        id: 'starter_1',
+        title: `Starter Project for ${targetRole}`,
+        description: 'A beginner-friendly project designed to build your first portfolio asset in under 1 week.',
+        duration: '1 Week',
+        difficulty: 'Beginner'
+      },
+      nextBestAction: readiness.nextBestAction,
+      roadmapStagesCount: roadmap.length
+    };
   }
 };

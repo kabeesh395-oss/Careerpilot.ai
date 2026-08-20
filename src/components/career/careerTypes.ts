@@ -183,6 +183,80 @@ export interface DailyStudyBlock {
   xp: number;
 }
 
+export interface UserProfile {
+  name: string;
+  college: string;
+  degree: string;
+  department: string;
+  year: string;
+  currentSkills: string[];
+  programmingLanguages: string[];
+  interests: string[];
+  experienceLevel: string; // 'Zero Experience' | 'Student / Aspiring Intern' | 'Early Career'
+  targetRole: string;
+  targetCompany: string;
+  github: string;
+  linkedin: string;
+  leetcode: string;
+  streak: number;
+  xp: number;
+  dailyTimeBudget?: string; // '30m' | '1h' | '2h' | '3h+'
+  isOnboarded?: boolean;
+  isZeroExperience?: boolean;
+  isUnsureCareer?: boolean;
+  discoveredPaths?: string[];
+  createdAt?: string;
+  lastActiveAt?: string;
+}
+
+export interface RoadmapTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface RoadmapStage {
+  id: string;
+  title: string;
+  subtitle: string;
+  duration: string;
+  completed: boolean;
+  tasks: RoadmapTask[];
+  project: string;
+}
+
+export interface ProjectItem {
+  id: string;
+  title: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  technologies: string[];
+  description: string;
+  careerValue: string;
+  duration: string;
+  resumeBullet: string;
+  bridgesGap?: string;
+  isStarterProject?: boolean;
+}
+
+export interface MockQuestion {
+  id: string;
+  type: 'Technical' | 'HR' | 'Behavioral';
+  question: string;
+  context: string;
+  sampleAnswer: string;
+  keyTopics: string[];
+}
+
+export interface CareerDiscoveryOption {
+  role: string;
+  tagline: string;
+  suitabilityScore: number;
+  whyGoodFit: string;
+  starterStack: string[];
+  firstMiniProject: string;
+  timeToFirstJob: string;
+}
+
 export interface AiChatMessage {
   id: string;
   sender: 'user' | 'assistant';

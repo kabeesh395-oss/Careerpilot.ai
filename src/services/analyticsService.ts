@@ -2,7 +2,17 @@
 
 export type AnalyticsEventType =
   | 'app_opened'
+  | 'signup_started'
+  | 'onboarding_started'
+  | 'onboarding_step_viewed'
   | 'onboarding_completed'
+  | 'onboarding_skipped'
+  | 'career_discovery_triggered'
+  | 'first_action_taken'
+  | 'first_task_completed'
+  | 'first_project_started'
+  | 'first_resume_scanned'
+  | 'first_interview_started'
   | 'career_selected'
   | 'profile_updated'
   | 'resume_uploaded'

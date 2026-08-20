@@ -41,6 +41,7 @@ import { DailyCareerPlannerView } from '../career/DailyCareerPlannerView';
 import { SkillGapMatrixView } from '../career/SkillGapMatrixView';
 import { ComprehensiveReadinessModal } from '../career/ComprehensiveReadinessModal';
 import { AiCareerAssistantModal } from '../career/AiCareerAssistantModal';
+import { FreshUserOnboardingModal } from '../career/FreshUserOnboardingModal';
 
 // --- MOTION ANIMATED SCORE COUNTER & PROGRESS COMPONENTS ---
 export const AnimatedScoreCounter: React.FC<{ value: number; duration?: number; delay?: number }> = ({ 
@@ -248,11 +249,94 @@ export const CareerGuidanceApp: React.FC = () => {
     return localStorage.getItem('careerpilot_theme') !== 'light';
   });
   const [demoMode, setDemoMode] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('careerpilot_onboarded') !== 'true';
+    } catch {
+      return false;
+    }
+  });
   const [showAiCopilot, setShowAiCopilot] = useState(false);
   const [showDiagnosisModal, setShowDiagnosisModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [profileSavedToast, setProfileSavedToast] = useState(false);
+
+  // Starter Fresher Resume Template
+  const FRESHER_STARTER_RESUME = `ALEX CHEN
+Email: alex.chen@university.edu | GitHub: github.com/alexchen-dev | LinkedIn: linkedin.com/in/alexchen-tech
+
+EDUCATION
+University of California, Berkeley - B.S. in Computer Science (GPA: 3.8/4.0) | Expected 2027
+Relevant Coursework: Data Structures & Algorithms, Database Systems, Computer Networks, Operating Systems
+
+TECHNICAL SKILLS
+Languages: Python, JavaScript, TypeScript, SQL, C++
+Frameworks & Libraries: React, Node.js, FastAPI, Pandas, PyTorch Basics, Tailwind CSS
+Tools & Cloud: Git, GitHub Actions, Docker, Linux, PostgreSQL, Redis, Postman
+
+ACADEMIC & CAPSTONE PROJECTS
+1. Real-Time Distributed Task Engine | React, TypeScript, FastAPI, Redis
+- Designed asynchronous task queue handling 5,000 requests/minute with sub-50ms processing latency.
+- Built interactive dashboard with client-side caching reducing network round-trips by 40%.
+
+2. Semantic Document Search & Q&A Assistant | Python, ChromaDB, Sentence-Transformers, Docker
+- Engineered a hybrid vector search indexing 10,000+ technical documents with 92% retrieval accuracy.
+- Containerized microservice with Docker and automated testing suite attaining 95% code coverage.
+
+EXTRACURRICULARS & LEADERSHIP
+- Hackathon Finalist (Top 5 out of 120 teams)
+- Computer Science Peer Mentor: Tutored 25+ freshmen in Python algorithms and memory fundamentals.`;
+
+  // Onboarding Handlers
+  const handleCompleteOnboarding = (newProfile: UserProfile) => {
+    setProfile(newProfile);
+    setAnalyzerForm({
+      name: newProfile.name,
+      college: newProfile.college,
+      degree: newProfile.degree,
+      department: newProfile.department,
+      year: newProfile.year,
+      targetRole: newProfile.targetRole,
+      targetCompany: newProfile.targetCompany,
+      skills: newProfile.currentSkills.join(', '),
+      programmingLanguages: newProfile.programmingLanguages.join(', '),
+      experienceLevel: newProfile.experienceLevel,
+      interests: newProfile.interests.join(', '),
+      github: newProfile.github,
+      linkedin: newProfile.linkedin,
+      leetcode: newProfile.leetcode
+    });
+    localStorage.setItem('careerpilot_profile', JSON.stringify(newProfile));
+    localStorage.setItem('careerpilot_onboarded', 'true');
+    setShowOnboarding(false);
+
+    // Sync new dynamic roadmap
+    const dynamicStages = CareerRecommendationEngine.getDynamicRoadmap(newProfile.targetRole);
+    setStages(dynamicStages);
+    localStorage.setItem('careerpilot_stages', JSON.stringify(dynamicStages));
+
+    // Calculate initial dynamic readiness
+    const initialDiag = CareerRecommendationEngine.calculateReadiness(newProfile, newProfile.currentSkills);
+    setPillars({
+      skills: Math.max(35, initialDiag.breakdown.technicalSkills),
+      projects: Math.max(30, initialDiag.breakdown.projects),
+      resume: 70,
+      interview: 60
+    });
+
+    AnalyticsService.track('first_action_taken', { type: 'onboarding_completed' });
+  };
+
+  const handleSkipOnboarding = () => {
+    localStorage.setItem('careerpilot_onboarded', 'true');
+    setShowOnboarding(false);
+  };
+
+  const handleLoadFresherResume = () => {
+    setResumeText(FRESHER_STARTER_RESUME);
+    AnalyticsService.track('first_resume_scanned', { type: 'starter_template' });
+  };
 
   // Form State for Profile
   const [analyzerForm, setAnalyzerForm] = useState({
@@ -1030,18 +1114,42 @@ Provide JSON:
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label className="text-[9px] font-bold text-slate-400">Pasted Resume Text for Real ATS Parsing:</label>
-                    <span className="text-[9px] text-indigo-400 font-mono">Role: {profile.targetRole}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleLoadFresherResume}
+                        className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
+                      >
+                        + Insert Fresher Template
+                      </button>
+                      <span className="text-[9px] text-indigo-400 font-mono">Role: {profile.targetRole}</span>
+                    </div>
                   </div>
                   <textarea
                     rows={5}
                     value={resumeText}
                     onChange={e => setResumeText(e.target.value)}
-                    placeholder="Paste resume text here..."
+                    placeholder="Upload or paste your resume text here to analyze ATS compatibility..."
                     className={`w-full rounded-xl p-2.5 text-xs font-mono leading-relaxed outline-none border ${
                       isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-200 focus:border-indigo-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600'
                     }`}
                   />
                 </div>
+
+                {!resumeText.trim() && (
+                  <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-slate-300">
+                      🌱 <strong>No resume yet?</strong> Load our starter fresher template to test live ATS scoring.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleLoadFresherResume}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold shrink-0 transition"
+                    >
+                      Load Template
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={handleRunAiResumeAnalysis}
@@ -1578,6 +1686,19 @@ Provide JSON:
             {/* Quick Data & Privacy Triggers */}
             <div className="grid grid-cols-2 gap-2">
               <button
+                onClick={() => setShowOnboarding(true)}
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left transition ${
+                  isDarkMode ? 'bg-slate-900 border-slate-800 hover:border-indigo-500/40' : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Compass className="w-4 h-4 text-indigo-400 shrink-0" />
+                <div>
+                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Discovery Wizard</h4>
+                  <p className="text-[10px] text-slate-400">Re-run onboarding flow</p>
+                </div>
+              </button>
+
+              <button
                 onClick={handleExportData}
                 className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left transition ${
                   isDarkMode ? 'bg-slate-900 border-slate-800 hover:border-indigo-500/40' : 'bg-white border-slate-200 hover:bg-slate-50'
@@ -1589,7 +1710,9 @@ Provide JSON:
                   <p className="text-[10px] text-slate-400">Download JSON snapshot</p>
                 </div>
               </button>
+            </div>
 
+            <div className="grid grid-cols-1 gap-2">
               <button
                 onClick={() => setShowPrivacyModal(true)}
                 className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left transition ${
@@ -1598,14 +1721,22 @@ Provide JSON:
               >
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div>
-                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Privacy Controls</h4>
-                  <p className="text-[10px] text-slate-400">Telemetry & data purge</p>
+                  <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Privacy & Telemetry Controls</h4>
+                  <p className="text-[10px] text-slate-400">Manage data purge & client sandbox telemetry</p>
                 </div>
               </button>
             </div>
           </div>
         )}
       </main>
+
+      {/* Fresh User Onboarding & Discovery Wizard Modal */}
+      <FreshUserOnboardingModal
+        isOpen={showOnboarding}
+        isDarkMode={isDarkMode}
+        onCompleteOnboarding={handleCompleteOnboarding}
+        onSkipOnboarding={handleSkipOnboarding}
+      />
 
       {/* Comprehensive 9-Pillar Diagnosis Modal */}
       <ComprehensiveReadinessModal
