@@ -16,13 +16,13 @@ class CareerViewModel : ViewModel() {
     private val _userProfile = MutableStateFlow(CareerData.defaultProfile)
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
-    private val _pillars = MutableStateFlow(CareerPillars(skills = 78, projects = 65, resume = 82, interview = 70))
+    private val _pillars = MutableStateFlow(CareerPillars(skills = 0, projects = 0, resume = 0, interview = 0))
     val pillars: StateFlow<CareerPillars> = _pillars.asStateFlow()
 
-    private val _careerEnergyScore = MutableStateFlow(74)
+    private val _careerEnergyScore = MutableStateFlow(0)
     val careerEnergyScore: StateFlow<Int> = _careerEnergyScore.asStateFlow()
 
-    private val _careerEnergyTier = MutableStateFlow(CareerEnergyTier.GOOD)
+    private val _careerEnergyTier = MutableStateFlow(CareerEnergyTier.DANGER)
     val careerEnergyTier: StateFlow<CareerEnergyTier> = _careerEnergyTier.asStateFlow()
 
     private val _dailyMissions = MutableStateFlow(CareerData.defaultDailyMissions)
@@ -43,7 +43,7 @@ class CareerViewModel : ViewModel() {
     private val _resumeAnalysis = MutableStateFlow(CareerData.defaultResumeAnalysis)
     val resumeAnalysis: StateFlow<ATSResumeAnalysis> = _resumeAnalysis.asStateFlow()
 
-    private val _selectedResumeName = MutableStateFlow("Alex_Chen_ML_Resume.pdf")
+    private val _selectedResumeName = MutableStateFlow("")
     val selectedResumeName: StateFlow<String> = _selectedResumeName.asStateFlow()
 
     private val _isAnalyzingResume = MutableStateFlow(false)

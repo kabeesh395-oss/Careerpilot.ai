@@ -11,10 +11,10 @@ enum class CareerEnergyTier(val label: String, val color: Color, val glowColor: 
 }
 
 data class CareerPillars(
-    val skills: Int = 78,
-    val projects: Int = 65,
-    val resume: Int = 82,
-    val interview: Int = 70
+    val skills: Int = 0,
+    val projects: Int = 0,
+    val resume: Int = 0,
+    val interview: Int = 0
 )
 
 data class PillarWeights(
@@ -127,18 +127,18 @@ data class InterviewFeedback(
 )
 
 data class UserProfile(
-    val name: String = "Alex Chen",
-    val college: String = "Stanford University",
+    val name: String = "",
+    val college: String = "",
     val degree: String = "B.S. Computer Science",
-    val targetRole: String = "Machine Learning Engineer",
-    val targetCompany: String = "Google DeepMind",
-    val streak: Int = 14,
-    val xp: Int = 2450,
-    val level: Int = 8,
-    val github: String = "github.com/alexchen-dev",
-    val linkedin: String = "linkedin.com/in/alexchen-ai",
-    val leetcode: String = "leetcode.com/u/alex_algo",
-    val currentSkills: List<String> = listOf("Python", "PyTorch", "FastAPI", "SQL", "Data Structures", "Algorithms")
+    val targetRole: String = "Software Engineer",
+    val targetCompany: String = "",
+    val streak: Int = 0,
+    val xp: Int = 0,
+    val level: Int = 1,
+    val github: String = "",
+    val linkedin: String = "",
+    val leetcode: String = "",
+    val currentSkills: List<String> = emptyList()
 )
 
 data class ATSResumeAnalysis(

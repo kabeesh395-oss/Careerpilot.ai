@@ -66,7 +66,8 @@ fun CareerPilotApp(
                 HomeScreen(
                     viewModel = viewModel,
                     onNavigateToRoadmap = { navController.navigate(Screen.Roadmap.route) },
-                    onNavigateToAnalyzer = { navController.navigate(Screen.Analyzer.route) }
+                    onNavigateToAnalyzer = { navController.navigate(Screen.Analyzer.route) },
+                    onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
                 )
             }
             composable(Screen.Analyzer.route) {
