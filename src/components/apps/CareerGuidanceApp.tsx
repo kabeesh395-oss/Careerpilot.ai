@@ -9,7 +9,7 @@ import {
   Target, CheckSquare, Zap, Flame,
   MessageSquare, Copy, Check, BarChart3, Sun, Moon,
   ChevronRight, FileSearch, Bookmark, Plus, X, Lock, Download, Key,
-  Github, Linkedin, BookOpen, Calendar
+  Github, Linkedin, BookOpen, Calendar, LogOut
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { AIService, CareerAnalysisResponse } from '../../services/aiService';
@@ -42,6 +42,10 @@ import { SkillGapMatrixView } from '../career/SkillGapMatrixView';
 import { ComprehensiveReadinessModal } from '../career/ComprehensiveReadinessModal';
 import { AiCareerAssistantModal } from '../career/AiCareerAssistantModal';
 import { FreshUserOnboardingModal } from '../career/FreshUserOnboardingModal';
+import { AuthWelcomeView, AuthUser } from '../career/AuthWelcomeView';
+import { AiCareerAnalysisView } from '../career/AiCareerAnalysisView';
+import { AiCareerAnalysisResult } from '../career/careerTypes';
+import { CareerPilotLogo, CareerPilotSymbol, CareerPilotBrandShowcase } from '../career/CareerPilotLogo';
 
 // --- MOTION ANIMATED SCORE COUNTER & PROGRESS COMPONENTS ---
 export const AnimatedScoreCounter: React.FC<{ value: number; duration?: number; delay?: number }> = ({ 
@@ -146,6 +150,22 @@ const DEFAULT_MOCK_QUESTIONS: MockQuestion[] = [
 ];
 
 export const CareerGuidanceApp: React.FC = () => {
+  // Fresh Clean Reset Enforcement: Purge old legacy mock data (e.g. Alex Chen) on fresh boot
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const hasPurged = localStorage.getItem('careerpilot_clean_reset_v4');
+      if (!hasPurged) {
+        localStorage.clear();
+        localStorage.setItem('careerpilot_clean_reset_v4', 'true');
+        return null;
+      }
+      const saved = localStorage.getItem('careerpilot_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Main Navigation Tab
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analyze' | 'roadmap' | 'practice' | 'tracker' | 'profile'>('dashboard');
 
@@ -155,11 +175,15 @@ export const CareerGuidanceApp: React.FC = () => {
   const [practiceSubTab, setPracticeSubTab] = useState<'mock_interview' | 'project_blueprints' | 'learning_engine'>('mock_interview');
   const [trackerSubTab, setTrackerSubTab] = useState<'daily_planner' | 'opportunities' | 'pipeline'>('daily_planner');
 
-  // Candidate Profile State
+  // Candidate Profile State (Scoped to current authenticated user)
   const [profile, setProfile] = useState<UserProfile>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_profile');
-      return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_profile`);
+        if (saved) return JSON.parse(saved);
+      }
+      return DEFAULT_PROFILE;
     } catch {
       return DEFAULT_PROFILE;
     }
@@ -168,10 +192,14 @@ export const CareerGuidanceApp: React.FC = () => {
   // 4 Pillars Base Scores
   const [pillars, setPillars] = useState<CareerPillars>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_pillars');
-      return saved ? JSON.parse(saved) : { skills: 85, projects: 70, resume: 82, interview: 75 };
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_pillars`);
+        if (saved) return JSON.parse(saved);
+      }
+      return { skills: 0, projects: 0, resume: 0, interview: 0 };
     } catch {
-      return { skills: 85, projects: 70, resume: 82, interview: 75 };
+      return { skills: 0, projects: 0, resume: 0, interview: 0 };
     }
   });
 
@@ -193,8 +221,12 @@ export const CareerGuidanceApp: React.FC = () => {
   // Daily Missions State
   const [dailyMissions, setDailyMissions] = useState<DailyMission[]>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_missions');
-      return saved ? JSON.parse(saved) : DEFAULT_DAILY_MISSIONS;
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_missions`);
+        if (saved) return JSON.parse(saved);
+      }
+      return DEFAULT_DAILY_MISSIONS;
     } catch {
       return DEFAULT_DAILY_MISSIONS;
     }
@@ -203,8 +235,12 @@ export const CareerGuidanceApp: React.FC = () => {
   // Skill Evidence State
   const [skillEvidence, setSkillEvidence] = useState<SkillEvidenceItem[]>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_evidence');
-      return saved ? JSON.parse(saved) : DEFAULT_SKILL_EVIDENCE;
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_evidence`);
+        if (saved) return JSON.parse(saved);
+      }
+      return DEFAULT_SKILL_EVIDENCE;
     } catch {
       return DEFAULT_SKILL_EVIDENCE;
     }
@@ -213,8 +249,12 @@ export const CareerGuidanceApp: React.FC = () => {
   // Opportunities & Applications State
   const [opportunities, setOpportunities] = useState<OpportunityMatch[]>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_opportunities');
-      return saved ? JSON.parse(saved) : DEFAULT_OPPORTUNITIES;
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_opportunities`);
+        if (saved) return JSON.parse(saved);
+      }
+      return DEFAULT_OPPORTUNITIES;
     } catch {
       return DEFAULT_OPPORTUNITIES;
     }
@@ -222,8 +262,12 @@ export const CareerGuidanceApp: React.FC = () => {
 
   const [applications, setApplications] = useState<TrackedApplication[]>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_applications');
-      return saved ? JSON.parse(saved) : DEFAULT_APPLICATIONS;
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_applications`);
+        if (saved) return JSON.parse(saved);
+      }
+      return DEFAULT_APPLICATIONS;
     } catch {
       return DEFAULT_APPLICATIONS;
     }
@@ -232,8 +276,12 @@ export const CareerGuidanceApp: React.FC = () => {
   // Stages & Dynamic Roadmap State
   const [stages, setStages] = useState<RoadmapStage[]>(() => {
     try {
-      const saved = localStorage.getItem('careerpilot_stages');
-      return saved ? JSON.parse(saved) : CareerRecommendationEngine.getDynamicRoadmap(profile.targetRole);
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        const saved = localStorage.getItem(`careerpilot_${userId}_stages`);
+        if (saved) return JSON.parse(saved);
+      }
+      return CareerRecommendationEngine.getDynamicRoadmap(profile.targetRole);
     } catch {
       return CareerRecommendationEngine.getDynamicRoadmap(profile.targetRole);
     }
@@ -251,29 +299,35 @@ export const CareerGuidanceApp: React.FC = () => {
   const [demoMode, setDemoMode] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('careerpilot_onboarded') !== 'true';
+      const userId = localStorage.getItem('careerpilot_current_user_id');
+      if (userId) {
+        return localStorage.getItem(`careerpilot_${userId}_onboarded`) !== 'true';
+      }
+      return true;
     } catch {
-      return false;
+      return true;
     }
   });
   const [showAiCopilot, setShowAiCopilot] = useState(false);
   const [showDiagnosisModal, setShowDiagnosisModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showAiAnalysisView, setShowAiAnalysisView] = useState(false);
+  const [showBrandShowcase, setShowBrandShowcase] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [profileSavedToast, setProfileSavedToast] = useState(false);
 
   // Starter Fresher Resume Template
-  const FRESHER_STARTER_RESUME = `ALEX CHEN
-Email: alex.chen@university.edu | GitHub: github.com/alexchen-dev | LinkedIn: linkedin.com/in/alexchen-tech
+  const FRESHER_STARTER_RESUME = `NEW GRADUATE RESUME
+Email: student@university.edu | GitHub: github.com/student-dev | LinkedIn: linkedin.com/in/student-profile
 
 EDUCATION
-University of California, Berkeley - B.S. in Computer Science (GPA: 3.8/4.0) | Expected 2027
+Tech University - B.S. in Computer Science | Expected 2027
 Relevant Coursework: Data Structures & Algorithms, Database Systems, Computer Networks, Operating Systems
 
 TECHNICAL SKILLS
 Languages: Python, JavaScript, TypeScript, SQL, C++
-Frameworks & Libraries: React, Node.js, FastAPI, Pandas, PyTorch Basics, Tailwind CSS
-Tools & Cloud: Git, GitHub Actions, Docker, Linux, PostgreSQL, Redis, Postman
+Frameworks & Libraries: React, Node.js, FastAPI, Tailwind CSS
+Tools & Cloud: Git, GitHub Actions, Docker, Linux, PostgreSQL, Postman
 
 ACADEMIC & CAPSTONE PROJECTS
 1. Real-Time Distributed Task Engine | React, TypeScript, FastAPI, Redis
@@ -282,11 +336,7 @@ ACADEMIC & CAPSTONE PROJECTS
 
 2. Semantic Document Search & Q&A Assistant | Python, ChromaDB, Sentence-Transformers, Docker
 - Engineered a hybrid vector search indexing 10,000+ technical documents with 92% retrieval accuracy.
-- Containerized microservice with Docker and automated testing suite attaining 95% code coverage.
-
-EXTRACURRICULARS & LEADERSHIP
-- Hackathon Finalist (Top 5 out of 120 teams)
-- Computer Science Peer Mentor: Tutored 25+ freshmen in Python algorithms and memory fundamentals.`;
+- Containerized microservice with Docker and automated testing suite attaining 95% code coverage.`;
 
   // Onboarding Handlers
   const handleCompleteOnboarding = (newProfile: UserProfile) => {
@@ -307,29 +357,37 @@ EXTRACURRICULARS & LEADERSHIP
       linkedin: newProfile.linkedin,
       leetcode: newProfile.leetcode
     });
-    localStorage.setItem('careerpilot_profile', JSON.stringify(newProfile));
-    localStorage.setItem('careerpilot_onboarded', 'true');
+
+    const userId = currentUser?.id || 'guest';
+    localStorage.setItem(`careerpilot_${userId}_profile`, JSON.stringify(newProfile));
+    localStorage.setItem(`careerpilot_${userId}_onboarded`, 'true');
     setShowOnboarding(false);
 
     // Sync new dynamic roadmap
     const dynamicStages = CareerRecommendationEngine.getDynamicRoadmap(newProfile.targetRole);
     setStages(dynamicStages);
-    localStorage.setItem('careerpilot_stages', JSON.stringify(dynamicStages));
+    localStorage.setItem(`careerpilot_${userId}_stages`, JSON.stringify(dynamicStages));
 
     // Calculate initial dynamic readiness
     const initialDiag = CareerRecommendationEngine.calculateReadiness(newProfile, newProfile.currentSkills);
-    setPillars({
+    const initialPillars = {
       skills: Math.max(35, initialDiag.breakdown.technicalSkills),
       projects: Math.max(30, initialDiag.breakdown.projects),
-      resume: 70,
-      interview: 60
-    });
+      resume: 60,
+      interview: 50
+    };
+    setPillars(initialPillars);
+    localStorage.setItem(`careerpilot_${userId}_pillars`, JSON.stringify(initialPillars));
+
+    // Open the comprehensive AI Career Analysis View
+    setShowAiAnalysisView(true);
 
     AnalyticsService.track('first_action_taken', { type: 'onboarding_completed' });
   };
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('careerpilot_onboarded', 'true');
+    const userId = currentUser?.id || 'guest';
+    localStorage.setItem(`careerpilot_${userId}_onboarded`, 'true');
     setShowOnboarding(false);
   };
 
@@ -338,11 +396,58 @@ EXTRACURRICULARS & LEADERSHIP
     AnalyticsService.track('first_resume_scanned', { type: 'starter_template' });
   };
 
+  // Auth Handler
+  const handleAuthenticate = (user: AuthUser, isNewUser: boolean) => {
+    setCurrentUser(user);
+    localStorage.setItem('careerpilot_auth_user', JSON.stringify(user));
+    localStorage.setItem('careerpilot_current_user_id', user.id);
+
+    const userProfileKey = `careerpilot_${user.id}_profile`;
+    const existingProfileRaw = localStorage.getItem(userProfileKey);
+
+    if (existingProfileRaw) {
+      try {
+        const existingProfile: UserProfile = JSON.parse(existingProfileRaw);
+        setProfile(existingProfile);
+        setShowOnboarding(!existingProfile.isOnboarded);
+
+        const savedStages = localStorage.getItem(`careerpilot_${user.id}_stages`);
+        if (savedStages) {
+          setStages(JSON.parse(savedStages));
+        } else {
+          setStages(CareerRecommendationEngine.getDynamicRoadmap(existingProfile.targetRole));
+        }
+      } catch {
+        // Fallback
+      }
+    } else {
+      const initialProfile: UserProfile = {
+        ...DEFAULT_PROFILE,
+        name: user.name,
+        isOnboarded: false,
+        createdAt: new Date().toISOString()
+      };
+      setProfile(initialProfile);
+      setShowOnboarding(true);
+      setStages(CareerRecommendationEngine.getDynamicRoadmap(initialProfile.targetRole));
+      localStorage.setItem(userProfileKey, JSON.stringify(initialProfile));
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('careerpilot_auth_user');
+    localStorage.removeItem('careerpilot_current_user_id');
+    setCurrentUser(null);
+    setProfile(DEFAULT_PROFILE);
+    setShowOnboarding(false);
+    AnalyticsService.track('user_logged_out');
+  };
+
   // Form State for Profile
   const [analyzerForm, setAnalyzerForm] = useState({
     name: profile.name,
     college: profile.college,
-    degree: profile.degree || 'B.Tech Computer Science',
+    degree: profile.degree || 'B.Tech / B.S. Computer Science',
     department: profile.department,
     year: profile.year,
     targetRole: profile.targetRole,
@@ -351,16 +456,14 @@ EXTRACURRICULARS & LEADERSHIP
     programmingLanguages: profile.programmingLanguages.join(', '),
     experienceLevel: profile.experienceLevel,
     interests: profile.interests.join(', '),
-    github: profile.github || 'alexchen-dev',
-    linkedin: profile.linkedin || 'alex-chen-tech',
-    leetcode: profile.leetcode || 'alex_coder'
+    github: profile.github || '',
+    linkedin: profile.linkedin || '',
+    leetcode: profile.leetcode || ''
   });
 
   // Resume Analyzer States
-  const [resumeText, setResumeText] = useState(
-    'Alex Chen\nEducation: B.Tech Computer Science (GPA: 3.8/4.0)\nSkills: Python, SQL, Git, HTML/CSS, Basic React, FastAPI, SQLite\nExperience: Built personal portfolio and small Python sentiment classifier with Flask.\nProjects: Task Tracker CLI with JSON storage.'
-  );
-  const [atsScore, setAtsScore] = useState<number>(82);
+  const [resumeText, setResumeText] = useState('');
+  const [atsScore, setAtsScore] = useState<number>(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [realAnalysisResult, setRealAnalysisResult] = useState<CareerAnalysisResponse | null>(null);
 
@@ -384,23 +487,31 @@ EXTRACURRICULARS & LEADERSHIP
   const handleAwardXP = (amount: number) => {
     setProfile(p => {
       const updated = { ...p, xp: p.xp + amount };
-      localStorage.setItem('careerpilot_profile', JSON.stringify(updated));
+      if (currentUser?.id) {
+        localStorage.setItem(`careerpilot_${currentUser.id}_profile`, JSON.stringify(updated));
+      }
       return updated;
     });
   };
 
-  // Sync to LocalStorage
+  // Sync to LocalStorage scoped to current user
   useEffect(() => {
-    localStorage.setItem('careerpilot_profile', JSON.stringify(profile));
-  }, [profile]);
+    if (currentUser?.id && profile.isOnboarded) {
+      localStorage.setItem(`careerpilot_${currentUser.id}_profile`, JSON.stringify(profile));
+    }
+  }, [profile, currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('careerpilot_pillars', JSON.stringify(pillars));
-  }, [pillars]);
+    if (currentUser?.id) {
+      localStorage.setItem(`careerpilot_${currentUser.id}_pillars`, JSON.stringify(pillars));
+    }
+  }, [pillars, currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('careerpilot_missions', JSON.stringify(dailyMissions));
-  }, [dailyMissions]);
+    if (currentUser?.id) {
+      localStorage.setItem(`careerpilot_${currentUser.id}_missions`, JSON.stringify(dailyMissions));
+    }
+  }, [dailyMissions, currentUser]);
 
   useEffect(() => {
     localStorage.setItem('careerpilot_evidence', JSON.stringify(skillEvidence));
@@ -644,16 +755,26 @@ Provide JSON:
     }
   };
 
-  // Reset All Local Data
+  // Reset All Local Data (Factory Purge)
   const handleResetAllData = () => {
-    localStorage.clear();
-    setProfile(DEFAULT_PROFILE);
-    setPillars({ skills: 85, projects: 70, resume: 82, interview: 75 });
-    setDailyMissions(DEFAULT_DAILY_MISSIONS);
-    setSkillEvidence(DEFAULT_SKILL_EVIDENCE);
-    setOpportunities(DEFAULT_OPPORTUNITIES);
-    setApplications(DEFAULT_APPLICATIONS);
-    setStages(DEFAULT_STAGES);
+    try {
+      localStorage.clear();
+      localStorage.setItem('careerpilot_clean_reset_v4', 'true');
+      setCurrentUser(null);
+      setProfile(DEFAULT_PROFILE);
+      setPillars({ skills: 0, projects: 0, resume: 0, interview: 0 });
+      setDailyMissions([]);
+      setSkillEvidence([]);
+      setOpportunities(DEFAULT_OPPORTUNITIES);
+      setApplications([]);
+      setStages([]);
+      setResumeText('');
+      setShowOnboarding(false);
+      setShowPrivacyModal(false);
+      AnalyticsService.track('full_data_purged');
+    } catch (e) {
+      console.error('Failed to reset all data', e);
+    }
   };
 
   // Export Data JSON
@@ -673,7 +794,7 @@ Provide JSON:
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `CareerPilot_Data_${profile.name.replace(/\s+/g, '_')}.json`;
+    a.download = `CareerPilot_Data_${profile.name ? profile.name.replace(/\s+/g, '_') : 'Student'}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -685,30 +806,60 @@ Provide JSON:
 
   const activeMission = dailyMissions.find(m => !m.completed) || dailyMissions[0];
 
+  if (!currentUser) {
+    return (
+      <AuthWelcomeView
+        isDarkMode={isDarkMode}
+        onAuthenticate={handleAuthenticate}
+      />
+    );
+  }
+
+  if (showAiAnalysisView) {
+    const analysis = CareerRecommendationEngine.generateComprehensiveAiAnalysis(profile);
+    return (
+      <AiCareerAnalysisView
+        analysis={analysis}
+        profile={profile}
+        isDarkMode={isDarkMode}
+        onProceedToDashboard={() => setShowAiAnalysisView(false)}
+        onEditProfile={() => {
+          setShowAiAnalysisView(false);
+          setActiveTab('profile');
+        }}
+      />
+    );
+  }
+
   return (
     <div className={`h-full flex flex-col ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} overflow-hidden font-sans select-none transition-colors duration-200`}>
       
       {/* Top Header */}
-      <header className={`${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'} backdrop-blur border-b px-3.5 py-2.5 flex items-center justify-between shrink-0 z-20 shadow-sm`}>
+      <header className={`${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'} backdrop-blur border-b px-3.5 py-2 flex items-center justify-between shrink-0 z-20 shadow-sm`}>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-            <Compass className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className={`text-xs font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1`}>
-                CareerPilot <span className="text-indigo-500">AI</span>
-              </h1>
-              <span className="text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono px-1.5 py-0.2 rounded-full font-bold">
-                PRO
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 font-medium">Autonomous Career Guidance & Readiness</p>
-          </div>
+          <CareerPilotLogo variant={isDarkMode ? 'dark' : 'light'} size={28} showBadge badgeText="AI" />
         </div>
 
         {/* Header Controls */}
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowBrandShowcase(true)}
+            className="text-[10px] font-bold px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition flex items-center gap-1"
+            title="Inspect Brand Identity, Logo System & Export SVGs"
+          >
+            <CareerPilotSymbol variant={isDarkMode ? 'dark' : 'light'} size={12} />
+            <span className="hidden sm:inline">Brand System</span>
+          </button>
+
+          <button
+            onClick={() => setShowAiAnalysisView(true)}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25 transition flex items-center gap-1"
+            title="View Comprehensive AI Career Analysis"
+          >
+            <Sparkles className="w-3 h-3 text-amber-300" />
+            <span className="hidden sm:inline">AI Analysis</span>
+          </button>
+
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className={`p-1.5 rounded-lg border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
@@ -718,15 +869,11 @@ Provide JSON:
           </button>
 
           <button
-            onClick={() => setDemoMode(!demoMode)}
-            className={`text-[9px] font-bold px-2 py-1 rounded-lg border transition flex items-center gap-1 ${
-              demoMode 
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
-            }`}
+            onClick={handleLogout}
+            className={`p-1.5 rounded-lg border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10' : 'bg-slate-100 border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50'}`}
+            title="Log Out"
           >
-            <Zap className="w-2.5 h-2.5 text-amber-400" />
-            {demoMode ? 'Demo Mode' : 'Live Gemini'}
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </header>
@@ -735,39 +882,62 @@ Provide JSON:
       <main className="flex-1 overflow-y-auto p-3.5 space-y-3.5 scrollbar-thin scrollbar-thumb-slate-800">
         
         {/* ==================================================== */}
-        {/* 1. DASHBOARD TAB */}
+        {/* 1. DASHBOARD TAB (Personalized First Dashboard) */}
         {/* ==================================================== */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3.5 animate-in fade-in duration-150">
             
-            {/* Top Greeting with Streak & XP */}
-            <div className="bg-gradient-to-r from-indigo-950/70 via-purple-950/40 to-slate-900 border border-indigo-500/30 p-3.5 rounded-2xl shadow-lg relative overflow-hidden">
+            {/* 1. CAREER GOAL BANNER */}
+            <div className="bg-gradient-to-r from-indigo-950/80 via-purple-950/50 to-slate-900 border border-indigo-500/30 p-4 rounded-2xl shadow-lg relative overflow-hidden space-y-3">
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-1.5 text-xs text-indigo-300 font-semibold mb-0.5">
-                    <span>👋 Welcome,</span>
+                    <span>👋 Hello,</span>
                     <span className="text-white font-bold">{profile.name}</span>
                   </div>
-                  <h2 className="text-sm font-extrabold text-white">
-                    Target: <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-cyan-300">{profile.targetRole}</span>
+                  <h2 className="text-base font-black text-white flex items-center gap-2">
+                    <Target className="w-4 h-4 text-rose-400" />
+                    <span>Target: <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-200 to-cyan-300">{profile.targetRole}</span></span>
                   </h2>
-                  <p className="text-[11px] text-slate-300 mt-0.5">
-                    Aiming for <strong className="text-white">{profile.targetCompany}</strong> &bull; {profile.college}
+                  <p className="text-[11px] text-slate-300 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>🏢 Aiming for <strong className="text-white">{profile.targetCompany}</strong></span>
+                    <span>&bull;</span>
+                    <span>🎓 {profile.degree} ({profile.year})</span>
+                    <span>&bull;</span>
+                    <span>⏱️ {profile.dailyTimeBudget || '1h'}/day</span>
                   </p>
                 </div>
 
-                <div className="flex flex-col items-end gap-1">
-                  <span className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm font-mono">
-                    <Flame className="w-3 h-3 fill-amber-400 text-amber-400" /> {profile.streak} Days
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm font-mono">
+                    <Flame className="w-3 h-3 fill-amber-400 text-amber-400" /> {profile.streak} Day Streak
                   </span>
-                  <span className="text-[10px] font-mono text-indigo-300 font-bold">
+                  <span className="text-[10px] font-mono text-indigo-300 font-bold bg-indigo-900/40 px-2 py-0.5 rounded-full border border-indigo-500/30">
                     ⚡ {profile.xp} XP
                   </span>
                 </div>
               </div>
+
+              {/* Action Buttons for Career Goal */}
+              <div className="flex items-center gap-2 pt-1 border-t border-indigo-500/20">
+                <button
+                  onClick={() => setShowAiAnalysisView(true)}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>View AI Career Analysis</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className="px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
+                >
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
             </div>
 
-            {/* Signature Career Energy Gauge */}
+            {/* 2. READINESS OVERVIEW */}
             <CareerEnergyGauge
               score={readinessOverall}
               targetRole={profile.targetRole}
@@ -775,69 +945,20 @@ Provide JSON:
               onOpenDiagnosis={() => setShowDiagnosisModal(true)}
             />
 
-            {/* Contextual Next Best Action Banner */}
-            <div 
-              onClick={() => {
-                setActiveTab('practice');
-                setPracticeSubTab('project_blueprints');
-              }}
-              className="bg-indigo-950/40 border border-indigo-500/40 p-3 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:border-indigo-500/70 transition group shadow-sm"
-            >
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30 group-hover:scale-105 transition">
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-indigo-300 block">
-                    NEXT BEST ACTION
-                  </span>
-                  <p className="text-xs font-bold text-white truncate">
-                    {readinessDiagnosis.nextBestAction.title}
-                  </p>
-                  <p className="text-[10px] text-slate-300 truncate">
-                    {readinessDiagnosis.nextBestAction.expectedGain}
-                  </p>
-                </div>
-              </div>
-              <button className="text-[10px] text-indigo-200 font-bold flex items-center gap-0.5 bg-indigo-900/60 px-2 py-1 rounded-lg shrink-0 border border-indigo-500/40">
-                Start <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Today's Mission Card */}
-            {activeMission && (
-              <TodayMissionCard
-                mission={activeMission}
-                onToggleComplete={handleToggleDailyMission}
-                onNavigate={(route) => {
-                  if (route === 'projects') {
-                    setActiveTab('practice');
-                    setPracticeSubTab('project_blueprints');
-                  } else if (route === 'interview') {
-                    setActiveTab('practice');
-                    setPracticeSubTab('mock_interview');
-                  } else if (route === 'analyze') {
-                    setActiveTab('analyze');
-                    setAnalyzeSubTab('ats_resume');
-                  }
-                }}
-              />
-            )}
-
-            {/* 4 Pillars Breakdown Cards */}
+            {/* 4 Role-Weighted Readiness Pillars */}
             <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5 shadow-md`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">Role-Weighted Pillars</span>
+                  <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">Readiness Overview</span>
                   <h3 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
-                    <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Career Readiness Breakdown
+                    <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> 4 Career Pillars Breakdown
                   </h3>
                 </div>
                 <button
                   onClick={() => setShowDiagnosisModal(true)}
                   className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-0.5"
                 >
-                  Full 9-Pillar Diagnostic <ChevronRight className="w-3 h-3" />
+                  Full Diagnostic <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
 
@@ -908,6 +1029,206 @@ Provide JSON:
               </div>
             </div>
 
+            {/* 3. TOP SKILL GAP */}
+            {readinessDiagnosis.criticalGaps.length > 0 && (
+              <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} space-y-2 shadow-md`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-rose-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-rose-400" /> Top Priority Skill Gap
+                  </span>
+                  <button
+                    onClick={() => {
+                      setActiveTab('roadmap');
+                      setRoadmapSubTab('skill_gap_matrix');
+                    }}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold"
+                  >
+                    View All Gaps &rarr;
+                  </button>
+                </div>
+
+                <div className="p-3 bg-rose-950/20 border border-rose-500/20 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-white">
+                      {readinessDiagnosis.criticalGaps[0].skill}
+                    </h4>
+                    <span className="text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30">
+                      High Impact
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    {readinessDiagnosis.criticalGaps[0].whyCritical}
+                  </p>
+                  <div className="pt-1 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400">
+                      Expected Readiness Gain: <strong className="text-emerald-400">+{readinessDiagnosis.criticalGaps[0].weight}%</strong>
+                    </span>
+                    <button
+                      onClick={() => {
+                        setActiveTab('roadmap');
+                        setRoadmapSubTab('stages');
+                      }}
+                      className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                    >
+                      Start Learning <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. NEXT BEST ACTION */}
+            <div 
+              onClick={() => {
+                setActiveTab('practice');
+                setPracticeSubTab('project_blueprints');
+              }}
+              className="bg-indigo-950/40 border border-indigo-500/40 p-3.5 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:border-indigo-500/70 transition group shadow-sm"
+            >
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30 group-hover:scale-105 transition">
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-indigo-300 block">
+                    NEXT BEST ACTION
+                  </span>
+                  <p className="text-xs font-bold text-white truncate">
+                    {readinessDiagnosis.nextBestAction.title}
+                  </p>
+                  <p className="text-[10px] text-slate-300 truncate">
+                    {readinessDiagnosis.nextBestAction.expectedGain}
+                  </p>
+                </div>
+              </div>
+              <button className="text-[10px] text-indigo-200 font-bold flex items-center gap-0.5 bg-indigo-900/60 px-2.5 py-1.5 rounded-lg shrink-0 border border-indigo-500/40">
+                Execute <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* 5. ROADMAP PROGRESS (Active Phase 1) */}
+            {stages.length > 0 && (
+              <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} space-y-3 shadow-md`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">Learning Roadmap</span>
+                    <h3 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Phase 1: {stages[0]?.name}
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                    {roadmapPercent}% Overall
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {stages[0]?.tasks.slice(0, 3).map(task => (
+                    <div
+                      key={task.id}
+                      onClick={() => toggleRoadmapTask(stages[0].id, task.id)}
+                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
+                        task.completed
+                          ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
+                          : isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {task.completed ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <Circle className="w-4 h-4 text-slate-600 shrink-0" />
+                        )}
+                        <span className={`font-semibold ${task.completed ? 'line-through text-slate-400' : ''}`}>
+                          {task.title}
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono text-slate-400 font-bold">
+                        {task.estHours} hrs
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('roadmap');
+                    setRoadmapSubTab('stages');
+                  }}
+                  className="w-full py-2 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl text-center text-xs font-bold text-slate-300 hover:text-white transition"
+                >
+                  View Full Roadmap Stages &rarr;
+                </button>
+              </div>
+            )}
+
+            {/* 6. RECOMMENDED FIRST PROJECT */}
+            {projectItems.length > 0 && (
+              <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5 shadow-md`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-mono text-amber-400 font-bold uppercase">Portfolio Blueprint</span>
+                    <h3 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
+                      <Code className="w-3.5 h-3.5 text-amber-400" /> Recommended First Project
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {projectItems[0].difficulty} &bull; {projectItems[0].estimatedHours}h
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                  <h4 className="text-xs font-extrabold text-white">
+                    {projectItems[0].title}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    {projectItems[0].description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {projectItems[0].stack.map((tech, i) => (
+                      <span key={i} className="text-[9px] font-mono bg-slate-900 border border-slate-800 text-indigo-300 px-1.5 py-0.5 rounded">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="p-2 bg-indigo-950/30 border border-indigo-500/20 rounded-lg text-[10px] text-indigo-200 mt-2">
+                    <strong className="text-white">Resume Impact:</strong> {projectItems[0].resumeBullet}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('practice');
+                    setPracticeSubTab('project_blueprints');
+                  }}
+                  className="w-full py-2 bg-indigo-600/20 border border-indigo-500/30 hover:bg-indigo-600/30 text-indigo-200 rounded-xl text-center text-xs font-bold transition"
+                >
+                  Open Project Blueprint Details &rarr;
+                </button>
+              </div>
+            )}
+
+            {/* 7. TODAY'S TASK */}
+            {activeMission && (
+              <TodayMissionCard
+                mission={activeMission}
+                onToggleComplete={handleToggleDailyMission}
+                onNavigate={(route) => {
+                  if (route === 'projects') {
+                    setActiveTab('practice');
+                    setPracticeSubTab('project_blueprints');
+                  } else if (route === 'interview') {
+                    setActiveTab('practice');
+                    setPracticeSubTab('mock_interview');
+                  } else if (route === 'analyze') {
+                    setActiveTab('analyze');
+                    setAnalyzeSubTab('ats_resume');
+                  }
+                }}
+              />
+            )}
+
             {/* 4 Quick Hub Launchers */}
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -946,6 +1267,7 @@ Provide JSON:
                 </div>
               </button>
             </div>
+
           </div>
         )}
 
@@ -1630,14 +1952,26 @@ Provide JSON:
             <div className={`p-4 rounded-2xl border space-y-3 shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-500/20">
-                  {profile.name.substring(0, 2).toUpperCase()}
+                  {profile.name ? profile.name.substring(0, 2).toUpperCase() : 'CP'}
                 </div>
-                <div>
-                  <h3 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{profile.name}</h3>
-                  <p className="text-[11px] text-indigo-400 font-semibold">{profile.targetRole} &bull; {profile.targetCompany}</p>
-                  <p className="text-[10px] text-slate-400">{profile.college} &bull; {profile.degree}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{profile.name || 'New Student'}</h3>
+                  <p className="text-[11px] text-indigo-400 font-semibold truncate">{profile.targetRole} {profile.targetCompany ? `• ${profile.targetCompany}` : ''}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{profile.college || 'Student Profile'} • {profile.degree}</p>
                 </div>
               </div>
+
+              {currentUser && (
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                  <div className="truncate">
+                    <span className="font-semibold text-slate-300">Account: </span>
+                    <span className="font-mono text-slate-400">{currentUser.email}</span>
+                  </div>
+                  <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                    Active Session
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Gemini API Key Card */}
@@ -1722,9 +2056,27 @@ Provide JSON:
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div>
                   <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Privacy & Telemetry Controls</h4>
-                  <p className="text-[10px] text-slate-400">Manage data purge & client sandbox telemetry</p>
+                  <p className="text-[10px] text-slate-400">Manage local storage, cookies & privacy consent</p>
                 </div>
               </button>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={handleLogout}
+                  className="p-3 rounded-2xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Log Out</span>
+                </button>
+
+                <button
+                  onClick={handleResetAllData}
+                  className="p-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-bold text-xs flex items-center justify-center gap-2 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Hard Reset All</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1773,6 +2125,12 @@ Provide JSON:
         onNavigateToTab={(tab) => {
           setActiveTab(tab as any);
         }}
+      />
+
+      {/* Brand Identity & Logo System Showcase Modal */}
+      <CareerPilotBrandShowcase
+        isOpen={showBrandShowcase}
+        onClose={() => setShowBrandShowcase(false)}
       />
 
       {/* Floating AI Copilot Trigger Button */}

@@ -183,6 +183,66 @@ export interface DailyStudyBlock {
   xp: number;
 }
 
+export interface SkillWithLevel {
+  name: string;
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
+}
+
+export interface AiCareerAnalysisResult {
+  careerMatch: {
+    percentage: number;
+    title: string;
+    summary: string;
+    targetRole: string;
+  };
+  currentSkillLevel: {
+    level: 'Beginner' | 'Intermediate' | 'Advanced';
+    explanation: string;
+  };
+  strongSkills: {
+    name: string;
+    whyStrong: string;
+  }[];
+  skillGaps: {
+    name: string;
+    category: string;
+    whyNeeded: string;
+    priority: 'High' | 'Medium';
+  }[];
+  recommendedNextSkill: {
+    name: string;
+    category: string;
+    whyRecommended: string;
+    actionableTask: string;
+    estimatedTimeToLearn: string;
+  };
+  firstProjectRecommendation: {
+    title: string;
+    difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+    technologies: string[];
+    description: string;
+    whyRecommended: string;
+    resumeImpact: string;
+    estimatedDuration: string;
+  };
+  learningRoadmap: {
+    phaseNumber: number;
+    title: string;
+    duration: string;
+    focus: string;
+    milestone: string;
+    whyImportant: string;
+  }[];
+  interviewPrepStartingPoint: {
+    coreTopic: string;
+    whyRecommended: string;
+    sampleStarterQuestion: string;
+    keyConceptToMaster: string;
+  };
+  analyzedAt: string;
+  disclaimer: string;
+}
+
 export interface UserProfile {
   name: string;
   college: string;
@@ -190,9 +250,12 @@ export interface UserProfile {
   department: string;
   year: string;
   currentSkills: string[];
+  skillsWithLevel?: SkillWithLevel[];
+  overallSkillLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
   programmingLanguages: string[];
   interests: string[];
   experienceLevel: string; // 'Zero Experience' | 'Student / Aspiring Intern' | 'Early Career'
+  projectExperienceNotes?: string;
   targetRole: string;
   targetCompany: string;
   github: string;

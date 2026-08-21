@@ -1,6 +1,7 @@
 import { 
   ComprehensiveReadinessBreakdown, SkillGapItem, RoadmapStage, ProjectItem, 
-  LearningResource, DailyStudyBlock, GitHubAuditResult, LinkedInAuditResult 
+  LearningResource, DailyStudyBlock, GitHubAuditResult, LinkedInAuditResult,
+  AiCareerAnalysisResult 
 } from '../components/career/careerTypes';
 
 export interface UserProfileData {
@@ -793,6 +794,227 @@ Actively seeking software engineering and ${targetRole} internship opportunities
       },
       nextBestAction: readiness.nextBestAction,
       roadmapStagesCount: roadmap.length
+    };
+  },
+
+  // 10. GENERATE COMPREHENSIVE AI CAREER ANALYSIS (STRICTLY FROM USER INPUTS)
+  generateComprehensiveAiAnalysis: (profile: any): AiCareerAnalysisResult => {
+    const targetRole = profile.targetRole || 'Full Stack Web Developer';
+    const currentSkills: string[] = profile.currentSkills || [];
+    const interests: string[] = profile.interests || [];
+    const experienceLevel: string = profile.experienceLevel || 'Zero Experience';
+    const skillsLower = currentSkills.map(s => s.toLowerCase());
+    const roleLower = targetRole.toLowerCase();
+
+    // 1. Calculate realistic career match based on skill & interest overlap
+    let matchScore = 50;
+    if (experienceLevel === 'Zero Experience') {
+      matchScore = 45;
+    } else if (experienceLevel === 'Student / Aspiring Intern') {
+      matchScore = 65;
+    } else {
+      matchScore = 78;
+    }
+
+    // Role-specific match boosts based on actual candidate skills
+    if (roleLower.includes('web') || roleLower.includes('full stack') || roleLower.includes('frontend')) {
+      if (skillsLower.some(s => ['javascript', 'typescript', 'react', 'html', 'css', 'node.js'].includes(s))) matchScore += 18;
+      if (skillsLower.some(s => ['sql', 'mongodb', 'postgresql', 'git'].includes(s))) matchScore += 12;
+    } else if (roleLower.includes('ai') || roleLower.includes('machine learning') || roleLower.includes('data')) {
+      if (skillsLower.some(s => ['python', 'pandas', 'numpy'].includes(s))) matchScore += 20;
+      if (skillsLower.some(s => ['sql', 'pytorch', 'tensorflow', 'scikit-learn'].includes(s))) matchScore += 15;
+    } else if (roleLower.includes('backend') || roleLower.includes('cloud') || roleLower.includes('devops')) {
+      if (skillsLower.some(s => ['python', 'java', 'c++', 'go', 'node.js'].includes(s))) matchScore += 18;
+      if (skillsLower.some(s => ['sql', 'docker', 'linux', 'git'].includes(s))) matchScore += 14;
+    } else {
+      matchScore += Math.min(25, currentSkills.length * 5);
+    }
+    matchScore = Math.min(96, Math.max(38, matchScore));
+
+    // 2. Assess Current Skill Level
+    let level: 'Beginner' | 'Intermediate' | 'Advanced' = 'Beginner';
+    let levelExplanation = '';
+
+    if (profile.overallSkillLevel) {
+      level = profile.overallSkillLevel;
+      levelExplanation = `Self-evaluated as ${level} based on your ${currentSkills.length} declared skills and ${experienceLevel} standing.`;
+    } else if (experienceLevel === 'Early Career' || (currentSkills.length >= 6 && matchScore >= 75)) {
+      level = 'Advanced';
+      levelExplanation = `Assessed as Advanced due to verified familiarity across multiple stack technologies (${currentSkills.join(', ')}).`;
+    } else if (experienceLevel === 'Student / Aspiring Intern' || currentSkills.length >= 3) {
+      level = 'Intermediate';
+      levelExplanation = `Assessed as Intermediate with baseline programming foundations in ${currentSkills.slice(0, 3).join(', ')}.`;
+    } else {
+      level = 'Beginner';
+      levelExplanation = `Assessed as Beginner — a clean starting slate ready for step-by-step foundation building.`;
+    }
+
+    // 3. Strong Skills with brief explanations
+    const strongSkillsList: { name: string; whyStrong: string }[] = [];
+    currentSkills.forEach(skill => {
+      const sLower = skill.toLowerCase();
+      if (sLower.includes('python')) {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Core versatility in backend logic, automation, and data/AI libraries.'
+        });
+      } else if (sLower.includes('javascript') || sLower.includes('typescript') || sLower.includes('react')) {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Essential frontend standard for building responsive web user interfaces.'
+        });
+      } else if (sLower.includes('sql') || sLower.includes('database')) {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Fundamental capability for data querying, persistence, and backend storage schema design.'
+        });
+      } else if (sLower.includes('c++') || sLower.includes('java')) {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Strong object-oriented programming foundation, memory concepts, and algorithmic problem-solving.'
+        });
+      } else if (sLower.includes('git')) {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Standard version control essential for collaboration and open-source portfolio builds.'
+        });
+      } else if (sLower.includes('html') || sLower.includes('css') || sLower.includes('tailwind')) {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Foundational markup and styling for structuring client-side web applications.'
+        });
+      } else {
+        strongSkillsList.push({
+          name: skill,
+          whyStrong: 'Valuable technical capability adding breadth to your engineering portfolio.'
+        });
+      }
+    });
+
+    if (strongSkillsList.length === 0) {
+      strongSkillsList.push({
+        name: 'Curiosity & Growth Mindset',
+        whyStrong: 'The fastest predictor of engineering growth when building your first projects.'
+      });
+    }
+
+    // 4. Skill Gaps for the target role
+    const skillGapMatrix = CareerRecommendationEngine.getSkillGapMatrix(targetRole, currentSkills);
+    const missingGaps = skillGapMatrix.filter(g => g.status === 'missing' || g.status === 'needs_improvement');
+    
+    const skillGapsFormatted = (missingGaps.length > 0 ? missingGaps : skillGapMatrix).slice(0, 4).map(g => ({
+      name: g.name,
+      category: g.category,
+      whyNeeded: g.whyItMatters,
+      priority: (g.recommendedOrder <= 2 ? 'High' : 'Medium') as 'High' | 'Medium'
+    }));
+
+    // 5. Recommended Next Skill (#1 highest leverage)
+    const topGap = skillGapsFormatted[0] || {
+      name: roleLower.includes('ai') ? 'Python & FastAPI' : 'JavaScript & React',
+      category: 'Core Stack',
+      whyNeeded: 'Highest ROI skill to build functional full-stack projects.',
+      priority: 'High' as const
+    };
+
+    const recommendedNextSkill = {
+      name: topGap.name,
+      category: topGap.category,
+      whyRecommended: `Bridging ${topGap.name} unlocks the ability to build functional capstone projects for ${targetRole} and improves technical interview readiness.`,
+      actionableTask: `Complete one mini-tutorial and build a 50-line working script or component using ${topGap.name}.`,
+      estimatedTimeToLearn: '1 - 2 Weeks'
+    };
+
+    // 6. First Project Recommendation
+    const projects = CareerRecommendationEngine.getRecommendedProjects(targetRole);
+    const starterProject = projects.find(p => p.isStarterProject) || projects[0] || {
+      id: 'proj_starter',
+      title: `Personal Portfolio & Capstone Showcase for ${targetRole}`,
+      difficulty: 'Beginner' as const,
+      technologies: currentSkills.length > 0 ? currentSkills.slice(0, 3) : ['HTML', 'CSS', 'JavaScript'],
+      description: `A clean, responsive capstone project showcasing core ${targetRole} concepts, clean code structure, and live deployment.`,
+      careerValue: 'Serves as the foundational proof-of-work piece for resume screenings and GitHub recruiter reviews.',
+      duration: '1-2 Weeks',
+      resumeBullet: `Engineered and deployed a responsive application using ${currentSkills.slice(0, 2).join(', ') || 'modern web technologies'}, demonstrating modular component design and clean architecture.`,
+      bridgesGap: topGap.name
+    };
+
+    const firstProjectRecommendation = {
+      title: starterProject.title,
+      difficulty: starterProject.difficulty,
+      technologies: starterProject.technologies,
+      description: starterProject.description,
+      whyRecommended: `Tailored to your current ${level} level. Completing this gives you tangible code to showcase on GitHub and put directly on your resume.`,
+      resumeImpact: starterProject.resumeBullet,
+      estimatedDuration: starterProject.duration
+    };
+
+    // 7. Learning Roadmap
+    const dynamicRoadmap = CareerRecommendationEngine.getDynamicRoadmap(targetRole);
+    const learningRoadmap = dynamicRoadmap.map((stage, idx) => ({
+      phaseNumber: idx + 1,
+      title: stage.title,
+      duration: stage.duration,
+      focus: stage.subtitle,
+      milestone: stage.project,
+      whyImportant: idx === 0 
+        ? 'Establishes syntax fluency and algorithmic problem-solving before diving into frameworks.'
+        : idx === 1 
+        ? 'Bridges single-file code into real-world client-server architectures with database persistence.'
+        : idx === 2 
+        ? 'Builds domain-specific depth to stand out against general applicants.'
+        : 'Prepares production deployment, containerization, and technical interview defense.'
+    }));
+
+    // 8. Interview Preparation Starting Point
+    let interviewTopic = 'Core Programming Concepts & STAR Behavioral Answers';
+    let sampleQuestion = 'Tell me about a technical project you built, the key architecture decisions you made, and how you tested it.';
+    let whyInterviewTopic = 'Recruiters and hiring managers test foundational programming logic and STAR-framework communication in initial screening rounds.';
+    let keyConcept = 'STAR Method: Situation, Task, Action, and Measurable Result.';
+
+    if (roleLower.includes('web') || roleLower.includes('frontend')) {
+      interviewTopic = 'DOM Lifecycle, Asynchronous JavaScript & State Management';
+      sampleQuestion = 'Explain how the event loop handles microtasks (Promises) vs macrotasks (setTimeout) in JavaScript.';
+      whyInterviewTopic = 'Frontend technical screens consistently evaluate deep understanding of asynchronous execution and UI rendering.';
+      keyConcept = 'Event Loop, Promises, Closures, and Virtual DOM reconciliation.';
+    } else if (roleLower.includes('backend') || roleLower.includes('cloud')) {
+      interviewTopic = 'REST API Standards, Database Indexing & HTTP Status Codes';
+      sampleQuestion = 'What is the difference between SQL B-Tree indexes and Hash indexes? When would you choose one over the other?';
+      whyInterviewTopic = 'Backend interviews focus on data consistency, latency optimization, and relational database schema design.';
+      keyConcept = 'Indexing, ACID Transactions, Connection Pooling, and REST vs RPC.';
+    } else if (roleLower.includes('ai') || roleLower.includes('machine learning')) {
+      interviewTopic = 'Model Evaluation Metrics, Overfitting & Vector Search';
+      sampleQuestion = 'How do Precision, Recall, and F1-Score differ, and which would you optimize when predicting false positives in critical alerts?';
+      whyInterviewTopic = 'AI engineering rounds probe practical model diagnostics rather than theoretical trivia.';
+      keyConcept = 'Train/Val/Test Splits, Bias-Variance Tradeoff, and Vector Embeddings.';
+    }
+
+    const interviewPrepStartingPoint = {
+      coreTopic: interviewTopic,
+      whyRecommended: whyInterviewTopic,
+      sampleStarterQuestion: sampleQuestion,
+      keyConceptToMaster: keyConcept
+    };
+
+    return {
+      careerMatch: {
+        percentage: matchScore,
+        title: `${matchScore}% Alignment with ${targetRole}`,
+        summary: `Based on your academic profile at ${profile.college || 'your college'}, ${currentSkills.length} declared skills, and interest in ${interests.slice(0, 2).join(', ') || targetRole}.`,
+        targetRole
+      },
+      currentSkillLevel: {
+        level,
+        explanation: levelExplanation
+      },
+      strongSkills: strongSkillsList,
+      skillGaps: skillGapsFormatted,
+      recommendedNextSkill,
+      firstProjectRecommendation,
+      learningRoadmap,
+      interviewPrepStartingPoint,
+      analyzedAt: new Date().toISOString(),
+      disclaimer: 'CareerPilot AI provides educational diagnostics and personalized learning recommendations based strictly on your profile inputs. We never guarantee employment, job offers, or compensation figures.'
     };
   }
 };

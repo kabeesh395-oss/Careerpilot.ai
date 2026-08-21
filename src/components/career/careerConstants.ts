@@ -191,70 +191,27 @@ export const DEFAULT_OPPORTUNITIES: OpportunityMatch[] = [
   }
 ];
 
-export const DEFAULT_APPLICATIONS: TrackedApplication[] = [
-  {
-    id: 'app_1',
-    company: 'Anthropic Labs',
-    role: 'Applied AI & RAG Fellow',
-    status: 'Interview',
-    appliedDate: 'Oct 12, 2026',
-    interviewDate: 'Nov 3, 2026 (Technical Round)',
-    matchScore: 91,
-    notes: 'Completed take-home vector search challenge. Preparing STAR stories for behavioral panel.',
-    resumeVersion: 'Resume_ML_v3.pdf',
-    salaryRange: '$52/hr'
-  },
-  {
-    id: 'app_2',
-    company: 'Google DeepMind',
-    role: 'Machine Learning Engineering Intern',
-    status: 'Assessment',
-    appliedDate: 'Oct 18, 2026',
-    interviewDate: 'Nov 8, 2026 (Online Assessment)',
-    matchScore: 84,
-    notes: 'Need to review Graph Algorithms and PyTorch memory layout before OA.',
-    resumeVersion: 'Resume_ML_v3.pdf',
-    salaryRange: '$58/hr'
-  },
-  {
-    id: 'app_3',
-    company: 'Stripe',
-    role: 'Junior AI Backend Systems Developer',
-    status: 'Applied',
-    appliedDate: 'Oct 24, 2026',
-    matchScore: 78,
-    notes: 'Submitted with custom cover letter highlighting FastAPI latency benchmark.',
-    resumeVersion: 'Resume_Backend_v2.pdf'
-  },
-  {
-    id: 'app_4',
-    company: 'OpenAI',
-    role: 'Research Engineer Intern',
-    status: 'Saved',
-    appliedDate: 'Not applied yet',
-    matchScore: 68,
-    notes: 'Targeting application after completing Stage 4 Docker & Distributed Systems Capstone.',
-    resumeVersion: 'Draft_ML_2026.pdf'
-  }
-];
+export const DEFAULT_APPLICATIONS: TrackedApplication[] = [];
 
 export const DEFAULT_PROFILE = {
-  name: 'Alex Chen',
-  college: 'University of California, Berkeley',
-  degree: 'B.S. Computer Science & Data Science',
-  department: 'EECS',
-  year: 'Junior (Class of 2027)',
-  currentSkills: ['Python', 'SQL', 'FastAPI', 'Pandas', 'PyTorch (Basics)', 'Git', 'Linux'],
-  programmingLanguages: ['Python', 'C++', 'SQL'],
-  interests: ['Machine Learning', 'Backend Systems', 'Distributed Computing'],
-  experienceLevel: 'Student / Aspiring Intern',
-  targetRole: 'Machine Learning Engineer',
-  targetCompany: 'Google DeepMind / Anthropic',
-  github: 'alexchen-dev',
-  linkedin: 'alex-chen-tech',
-  leetcode: 'alex_coder',
-  streak: 12,
-  xp: 1420
+  name: '',
+  college: '',
+  degree: 'B.Tech / B.S. Computer Science',
+  department: 'Computer Science',
+  year: 'Freshman / 1st Year',
+  currentSkills: [] as string[],
+  programmingLanguages: [] as string[],
+  interests: [] as string[],
+  experienceLevel: 'Student / Fresher',
+  targetRole: 'Software Engineer',
+  targetCompany: '',
+  github: '',
+  linkedin: '',
+  leetcode: '',
+  streak: 0,
+  xp: 0,
+  isOnboarded: false,
+  isZeroExperience: true
 };
 
 export const DEFAULT_STAGES = [

@@ -19,11 +19,11 @@ export const LinkedInAnalyzerView: React.FC<LinkedInAnalyzerViewProps> = ({
   targetRole,
   isDarkMode
 }) => {
-  const [profileInput, setProfileInput] = useState(initialProfileUrl || 'alex-chen-tech');
+  const [profileInput, setProfileInput] = useState(initialProfileUrl || '');
   const [isAuditing, setIsAuditing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [auditResult, setAuditResult] = useState<LinkedInAuditResult>(() =>
-    CareerRecommendationEngine.auditLinkedInProfile(initialProfileUrl || 'alex-chen-tech', targetRole)
+  const [auditResult, setAuditResult] = useState<LinkedInAuditResult | null>(() =>
+    initialProfileUrl ? CareerRecommendationEngine.auditLinkedInProfile(initialProfileUrl, targetRole) : null
   );
 
   const handleCopy = (text: string, id: string) => {
@@ -71,7 +71,7 @@ export const LinkedInAnalyzerView: React.FC<LinkedInAnalyzerViewProps> = ({
               type="text"
               value={profileInput}
               onChange={(e) => setProfileInput(e.target.value)}
-              placeholder="LinkedIn username or profile URL (e.g. alex-chen-tech)"
+              placeholder="LinkedIn username or profile URL (e.g. in/alex-chen)"
               className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border font-mono transition outline-none ${
                 isDarkMode 
                   ? 'bg-slate-950 border-slate-800 text-slate-200 focus:border-blue-500' 
@@ -97,119 +97,135 @@ export const LinkedInAnalyzerView: React.FC<LinkedInAnalyzerViewProps> = ({
         </form>
       </div>
 
-      {/* Overview Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Completeness</span>
-            <span className="text-xs font-mono font-bold text-blue-400">{auditResult.completenessScore}%</span>
+      {!auditResult ? (
+        <div className={`p-8 rounded-2xl border text-center space-y-3 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <Linkedin className="w-6 h-6" />
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-blue-400 h-full rounded-full" style={{ width: `${auditResult.completenessScore}%` }} />
-          </div>
-        </div>
-
-        <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Headline Impact</span>
-            <span className="text-xs font-mono font-bold text-amber-400">{auditResult.headlineScore}%</span>
-          </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-amber-400 h-full rounded-full" style={{ width: `${auditResult.headlineScore}%` }} />
+          <div>
+            <h4 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>No LinkedIn Profile Analyzed Yet</h4>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              Enter your public LinkedIn username or profile URL above to analyze recruiter discoverability, generate high-impact headlines, and tune your summary.
+            </p>
           </div>
         </div>
+      ) : (
+        <>
+          {/* Overview Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Completeness</span>
+                <span className="text-xs font-mono font-bold text-blue-400">{auditResult.completenessScore}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-blue-400 h-full rounded-full" style={{ width: `${auditResult.completenessScore}%` }} />
+              </div>
+            </div>
 
-        <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Skills Section</span>
-            <span className="text-xs font-mono font-bold text-emerald-400">{auditResult.skillsScore}%</span>
+            <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Headline Impact</span>
+                <span className="text-xs font-mono font-bold text-amber-400">{auditResult.headlineScore}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-amber-400 h-full rounded-full" style={{ width: `${auditResult.headlineScore}%` }} />
+              </div>
+            </div>
+
+            <div className={`p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Skills Section</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">{auditResult.skillsScore}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${auditResult.skillsScore}%` }} />
+              </div>
+            </div>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${auditResult.skillsScore}%` }} />
+
+          {/* High-Impact Headline Options */}
+          <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'} space-y-3`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4" /> Recommended High-Conversion Headlines for {targetRole}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Select & Copy</span>
+            </div>
+
+            <div className="space-y-2">
+              {auditResult.recommendedHeadlines.map((headline, idx) => (
+                <div 
+                  key={idx} 
+                  className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                    isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <p className="text-xs text-slate-200 font-mono leading-relaxed flex-1">
+                    "{headline}"
+                  </p>
+                  <button
+                    onClick={() => handleCopy(headline, `hl_${idx}`)}
+                    className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/10 transition shrink-0"
+                    title="Copy headline"
+                  >
+                    {copiedId === `hl_${idx}` ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* High-Impact Headline Options */}
-      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'} space-y-3`}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4" /> Recommended High-Conversion Headlines for {targetRole}
-          </span>
-          <span className="text-[10px] text-slate-400 font-mono">Select & Copy</span>
-        </div>
-
-        <div className="space-y-2">
-          {auditResult.recommendedHeadlines.map((headline, idx) => (
-            <div 
-              key={idx} 
-              className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
-                isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-              }`}
-            >
-              <p className="text-xs text-slate-200 font-mono leading-relaxed flex-1">
-                "{headline}"
-              </p>
+          {/* Recommended About Summary Template */}
+          <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                <FileText className="w-4 h-4" /> Recruiter-Tuned "About" Section Template
+              </span>
               <button
-                onClick={() => handleCopy(headline, `hl_${idx}`)}
-                className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/10 transition shrink-0"
-                title="Copy headline"
+                onClick={() => handleCopy(auditResult.recommendedAboutTemplate, 'about_tmpl')}
+                className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition"
               >
-                {copiedId === `hl_${idx}` ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copiedId === 'about_tmpl' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" /> Copy Entire About Section
+                  </>
+                )}
               </button>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Recommended About Summary Template */}
-      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5`}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> Recruiter-Tuned "About" Section Template
-          </span>
-          <button
-            onClick={() => handleCopy(auditResult.recommendedAboutTemplate, 'about_tmpl')}
-            className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition"
-          >
-            {copiedId === 'about_tmpl' ? (
-              <>
-                <Check className="w-3.5 h-3.5" /> Copied
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" /> Copy Entire About Section
-              </>
-            )}
-          </button>
-        </div>
+            <pre className={`p-3 rounded-xl border text-[11px] font-mono leading-relaxed whitespace-pre-wrap ${
+              isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}>
+              {auditResult.recommendedAboutTemplate}
+            </pre>
+          </div>
 
-        <pre className={`p-3 rounded-xl border text-[11px] font-mono leading-relaxed whitespace-pre-wrap ${
-          isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
-        }`}>
-          {auditResult.recommendedAboutTemplate}
-        </pre>
-      </div>
-
-      {/* Actionable Checklist */}
-      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5`}>
-        <span className="text-xs font-bold text-slate-300">
-          LinkedIn Optimization Checklist
-        </span>
-        <div className="space-y-2">
-          {auditResult.actionableChecklist.map((item, idx) => (
-            <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-950/40 border border-slate-800/60 text-xs">
-              <div className="flex items-center gap-2 text-slate-300">
-                <CheckCircle2 className={`w-4 h-4 ${item.done ? 'text-emerald-400' : 'text-slate-600'}`} />
-                <span>{item.task}</span>
-              </div>
-              <span className="text-[10px] font-mono font-bold text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
-                {item.impact}
-              </span>
+          {/* Actionable Checklist */}
+          <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'} space-y-2.5`}>
+            <span className="text-xs font-bold text-slate-300">
+              LinkedIn Optimization Checklist
+            </span>
+            <div className="space-y-2">
+              {auditResult.actionableChecklist.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-950/40 border border-slate-800/60 text-xs">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <CheckCircle2 className={`w-4 h-4 ${item.done ? 'text-emerald-400' : 'text-slate-600'}`} />
+                    <span>{item.task}</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
+                    {item.impact}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
