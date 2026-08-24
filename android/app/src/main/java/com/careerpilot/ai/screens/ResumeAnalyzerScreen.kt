@@ -88,13 +88,13 @@ fun ResumeAnalyzerScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = selectedFileName,
+                        text = if (selectedFileName.isNotEmpty()) selectedFileName else "No resume uploaded yet",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = TextPrimary
                     )
 
                     Text(
-                        text = "Native Android Document Picker (PDF / DOCX)",
+                        text = if (selectedFileName.isNotEmpty()) "Document parsed & ATS evaluated" else "Select PDF or DOCX file to analyze ATS score",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )

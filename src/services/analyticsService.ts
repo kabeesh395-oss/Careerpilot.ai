@@ -29,6 +29,8 @@ export type AnalyticsEventType =
   | 'job_applied'
   | 'ai_assistant_used'
   | 'api_key_configured'
+  | 'user_logged_out'
+  | 'full_data_purged'
   | 'theme_toggled'
   | 'error_occurred';
 

@@ -276,6 +276,7 @@ export interface RoadmapTask {
   id: string;
   title: string;
   completed: boolean;
+  estimatedHours?: number;
 }
 
 export interface RoadmapStage {
@@ -283,9 +284,10 @@ export interface RoadmapStage {
   title: string;
   subtitle: string;
   duration: string;
-  completed: boolean;
+  completed?: boolean;
   tasks: RoadmapTask[];
   project: string;
+  skills?: string[];
 }
 
 export interface ProjectItem {
@@ -326,4 +328,48 @@ export interface AiChatMessage {
   text: string;
   timestamp: string;
   actionLinks?: { label: string; tab: string; subTab?: string }[];
+}
+
+export interface UploadedResumeFile {
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  uploadedAt: string;
+  extractedText: string;
+  wordCount: number;
+  characterCount: number;
+}
+
+export interface ResumeBulletAnalysis {
+  original: string;
+  feedback: string;
+  improved: string;
+  category: 'Impact' | 'Action Verb' | 'Brevity' | 'Google XYZ Formula';
+}
+
+export interface ResumeSectionCheck {
+  name: string;
+  status: 'present' | 'missing' | 'warning';
+  feedback: string;
+}
+
+export interface DetailedResumeAnalysis {
+  id: string;
+  overallScore: number;
+  formattingScore: number;
+  keywordMatchScore: number;
+  impactScore: number;
+  sectionCompletenessScore: number;
+  strengths: string[];
+  weaknesses: string[];
+  missingKeywords: string[];
+  matchedKeywords: string[];
+  recommendedSkills: string[];
+  actionableSuggestions: string[];
+  bulletPointAnalysis: ResumeBulletAnalysis[];
+  sectionBreakdown: ResumeSectionCheck[];
+  analyzedRole: string;
+  analyzedAt: string;
+  source: 'ai_gemini' | 'heuristic_engine';
+  error?: string;
 }

@@ -20,7 +20,7 @@ import { CareerRecommendationEngine } from '../../services/careerRecommendationE
 import { 
   CareerEnergyTier, CareerPillars, PillarWeights, SkillEvidenceItem, 
   DailyMission, OpportunityMatch, TrackedApplication, EnhancedInterviewFeedback,
-  RoadmapStage, ProjectItem, MockQuestion
+  RoadmapStage, ProjectItem, MockQuestion, UserProfile
 } from '../career/careerTypes';
 import { 
   getPillarWeightsForRole, DEFAULT_PROFILE, DEFAULT_STAGES, DEFAULT_PROJECT_ITEMS,
@@ -44,6 +44,7 @@ import { AiCareerAssistantModal } from '../career/AiCareerAssistantModal';
 import { FreshUserOnboardingModal } from '../career/FreshUserOnboardingModal';
 import { AuthWelcomeView, AuthUser } from '../career/AuthWelcomeView';
 import { AiCareerAnalysisView } from '../career/AiCareerAnalysisView';
+import { ResumeAnalyzerView } from '../career/ResumeAnalyzerView';
 import { AiCareerAnalysisResult } from '../career/careerTypes';
 import { CareerPilotLogo, CareerPilotSymbol, CareerPilotBrandShowcase } from '../career/CareerPilotLogo';
 
@@ -94,25 +95,6 @@ export const AnimatedProgressBar: React.FC<{
     </div>
   );
 };
-
-export interface UserProfile {
-  name: string;
-  college: string;
-  degree: string;
-  department: string;
-  year: string;
-  currentSkills: string[];
-  programmingLanguages: string[];
-  interests: string[];
-  experienceLevel: string;
-  targetRole: string;
-  targetCompany: string;
-  github: string;
-  linkedin: string;
-  leetcode: string;
-  streak: number;
-  xp: number;
-}
 
 const DEFAULT_MOCK_QUESTIONS: MockQuestion[] = [
   {
@@ -1419,110 +1401,33 @@ Provide JSON:
 
             {/* SubTab 3: ATS Resume Scanner */}
             {analyzeSubTab === 'ats_resume' && (
-              <div className={`p-4 rounded-2xl border space-y-3 text-xs shadow-md ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                  <div>
-                    <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase">ATS AI Scanner</span>
-                    <h4 className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
-                      <FileText className="w-4 h-4 text-indigo-400" /> ATS Compatibility & Keyword Engine
-                    </h4>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-base font-black text-indigo-400 font-mono">{atsScore}/100</span>
-                    <span className="text-[8px] text-slate-400 block">ATS Score</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="text-[9px] font-bold text-slate-400">Pasted Resume Text for Real ATS Parsing:</label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleLoadFresherResume}
-                        className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
-                      >
-                        + Insert Fresher Template
-                      </button>
-                      <span className="text-[9px] text-indigo-400 font-mono">Role: {profile.targetRole}</span>
-                    </div>
-                  </div>
-                  <textarea
-                    rows={5}
-                    value={resumeText}
-                    onChange={e => setResumeText(e.target.value)}
-                    placeholder="Upload or paste your resume text here to analyze ATS compatibility..."
-                    className={`w-full rounded-xl p-2.5 text-xs font-mono leading-relaxed outline-none border ${
-                      isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-200 focus:border-indigo-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-indigo-600'
-                    }`}
-                  />
-                </div>
-
-                {!resumeText.trim() && (
-                  <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl flex items-center justify-between gap-2">
-                    <p className="text-[11px] text-slate-300">
-                      🌱 <strong>No resume yet?</strong> Load our starter fresher template to test live ATS scoring.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleLoadFresherResume}
-                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold shrink-0 transition"
-                    >
-                      Load Template
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleRunAiResumeAnalysis}
-                  disabled={isAnalyzing || !resumeText.trim()}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95 disabled:opacity-50"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Parsing Resume with Gemini AI...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Run Live ATS AI Analysis</span>
-                    </>
-                  )}
-                </button>
-
-                {realAnalysisResult && !realAnalysisResult.error && (
-                  <div className="space-y-2.5 pt-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/30 space-y-1">
-                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Detected Strengths ({realAnalysisResult.strengths.length})
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {realAnalysisResult.strengths.map((str, i) => (
-                            <span key={i} className="text-[9px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">
-                              ✓ {str}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-950 p-2.5 rounded-xl border border-rose-500/30 space-y-1">
-                        <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> Missing Role Keywords ({realAnalysisResult.skill_gaps.length})
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {realAnalysisResult.skill_gaps.map((gap, i) => (
-                            <span key={i} className="text-[9px] bg-rose-950/60 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 rounded font-mono">
-                              ▲ {gap}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ResumeAnalyzerView
+                profile={profile}
+                isDarkMode={isDarkMode}
+                currentUserId={currentUser?.id || 'guest'}
+                onUpdatePillarScore={(newScore) => {
+                  setAtsScore(newScore);
+                  setPillars(prev => ({
+                    ...prev,
+                    resume: newScore
+                  }));
+                }}
+                onUpdateProfileSkills={(detectedSkills) => {
+                  if (detectedSkills && detectedSkills.length > 0) {
+                    setProfile(p => ({
+                      ...p,
+                      xp: p.xp + 100,
+                      currentSkills: Array.from(new Set([...p.currentSkills, ...detectedSkills]))
+                    }));
+                  }
+                }}
+                onAddSkillToPlan={(skill) => {
+                  setProfile(p => ({
+                    ...p,
+                    currentSkills: Array.from(new Set([...p.currentSkills, skill]))
+                  }));
+                }}
+              />
             )}
 
             {/* SubTab 4: GitHub Auditor */}
